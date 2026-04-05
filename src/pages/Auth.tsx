@@ -51,24 +51,29 @@ export default function Auth() {
     defaultValues: { email: '', password: '', confirmPassword: '' },
   })
 
-  const handleAuthError = (error: any) => {
-    let message = 'Ocorreu um erro ao processar sua solicitação.'
-    if (error.message.includes('Invalid login credentials')) {
-      message = 'Credenciais inválidas. Verifique seu e-mail e senha.'
-    } else if (error.message.includes('User already registered')) {
-      message = 'Este e-mail já está registrado.'
+  const handleAuthError = (error: any, form: any) => {
+    if (error?.message?.includes('Invalid login credentials')) {
+      form.setError('root', { message: 'Credenciais inválidas. Verifique seu e-mail e senha.' })
+      return
+    } else if (error?.message?.includes('User already registered')) {
+      form.setError('email', { message: 'Este e-mail já está registrado.' })
+      return
     }
-    toast({ variant: 'destructive', title: 'Erro na autenticação', description: message })
+    toast({
+      variant: 'destructive',
+      title: 'Erro na autenticação',
+      description: error?.message || 'Ocorreu um erro ao processar sua solicitação.',
+    })
   }
 
   const onLogin = async (values: z.infer<typeof loginSchema>) => {
-    console.log('Login submission started')
     setIsSubmitting(true)
+    loginForm.clearErrors('root')
     const { error } = await signIn(values.email, values.password)
     setIsSubmitting(false)
 
     if (error) {
-      handleAuthError(error)
+      handleAuthError(error, loginForm)
     } else {
       toast({ title: 'Bem-vindo de volta!', description: 'Login realizado com sucesso.' })
       navigate('/')
@@ -76,13 +81,13 @@ export default function Auth() {
   }
 
   const onRegister = async (values: z.infer<typeof registerSchema>) => {
-    console.log('Register submission started')
     setIsSubmitting(true)
+    registerForm.clearErrors('root')
     const { error } = await signUp(values.email, values.password)
     setIsSubmitting(false)
 
     if (error) {
-      handleAuthError(error)
+      handleAuthError(error, registerForm)
     } else {
       toast({ title: 'Conta criada!', description: 'Sua conta foi criada com sucesso.' })
       navigate('/')
@@ -131,6 +136,11 @@ export default function Auth() {
                     </FormItem>
                   )}
                 />
+                {loginForm.formState.errors.root && (
+                  <div className="p-3 text-sm font-medium text-red-500 bg-red-500/10 border border-red-500/20 rounded-md">
+                    {loginForm.formState.errors.root.message}
+                  </div>
+                )}
                 <FormField
                   control={loginForm.control}
                   name="password"
@@ -216,6 +226,11 @@ export default function Auth() {
                     </FormItem>
                   )}
                 />
+                {registerForm.formState.errors.root && (
+                  <div className="p-3 text-sm font-medium text-red-500 bg-red-500/10 border border-red-500/20 rounded-md">
+                    {registerForm.formState.errors.root.message}
+                  </div>
+                )}
                 <FormField
                   control={registerForm.control}
                   name="confirmPassword"
