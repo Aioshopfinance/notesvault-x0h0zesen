@@ -161,8 +161,7 @@ export default function Auth() {
                       <FormLabel>E-mail</FormLabel>
                       <FormControl>
                         <input
-                          type="text"
-                          inputMode="email"
+                          type="email"
                           autoComplete="username"
                           placeholder="seu@email.com"
                           disabled={isSubmitting}
@@ -171,7 +170,10 @@ export default function Auth() {
                           onBlur={field.onBlur}
                           ref={field.ref}
                           onChange={(e) => field.onChange(e.target.value)}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
                           className={baseInputClassName}
+                          data-skip-ignore="true"
                         />
                       </FormControl>
                       <FormMessage className="font-medium text-red-500" />
@@ -239,8 +241,7 @@ export default function Auth() {
                       <FormLabel>E-mail</FormLabel>
                       <FormControl>
                         <input
-                          type="text"
-                          inputMode="email"
+                          type="email"
                           autoComplete="username"
                           placeholder="seu@email.com"
                           disabled={isSubmitting}
@@ -249,7 +250,10 @@ export default function Auth() {
                           onBlur={field.onBlur}
                           ref={field.ref}
                           onChange={(e) => field.onChange(e.target.value)}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
                           className={baseInputClassName}
+                          data-skip-ignore="true"
                         />
                       </FormControl>
                       <FormMessage className="font-medium text-red-500" />
