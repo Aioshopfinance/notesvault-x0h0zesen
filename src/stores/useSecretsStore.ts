@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Dispatch, SetStateAction } from 'react'
 import { Secret, AuditLog } from '@/lib/types'
 
 let globalState = {
@@ -30,7 +30,7 @@ let globalState = {
   ] as AuditLog[],
 }
 
-const listeners = new Set<Function>()
+const listeners = new Set<Dispatch<SetStateAction<typeof globalState>>>()
 
 function notify() {
   listeners.forEach((listener) => listener(globalState))

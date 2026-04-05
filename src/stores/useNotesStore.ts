@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Dispatch, SetStateAction } from 'react'
 import { Note, Folder } from '@/lib/types'
 
 const defaultFolders: Folder[] = [
@@ -42,7 +42,7 @@ let globalState = {
   selectedNoteId: null as string | null,
 }
 
-const listeners = new Set<Function>()
+const listeners = new Set<Dispatch<SetStateAction<typeof globalState>>>()
 
 function notify() {
   listeners.forEach((listener) => listener(globalState))
