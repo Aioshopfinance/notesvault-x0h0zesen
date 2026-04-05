@@ -9,7 +9,123 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_size: number
+          file_type: string
+          file_url: string
+          id: string
+          note_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_size: number
+          file_type: string
+          file_url: string
+          id?: string
+          note_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          file_url?: string
+          id?: string
+          note_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'attachments_note_id_fkey'
+            columns: ['note_id']
+            isOneToOne: false
+            referencedRelation: 'notes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      folders: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          parent_folder_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          parent_folder_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          parent_folder_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'folders_parent_folder_id_fkey'
+            columns: ['parent_folder_id']
+            isOneToOne: false
+            referencedRelation: 'folders'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      notes: {
+        Row: {
+          content: string
+          created_at: string
+          folder_id: string
+          id: string
+          is_pinned: boolean
+          pinned_at: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          folder_id: string
+          id?: string
+          is_pinned?: boolean
+          pinned_at?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          folder_id?: string
+          id?: string
+          is_pinned?: boolean
+          pinned_at?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'notes_folder_id_fkey'
+            columns: ['folder_id']
+            isOneToOne: false
+            referencedRelation: 'folders'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -153,3 +269,74 @@ export const Constants = {
 // IMPORTANT: The TypeScript types above map UUID, TEXT, VARCHAR all to "string".
 // Use the COLUMN TYPES section below to know the real PostgreSQL type for each column.
 // Always use the correct PostgreSQL type when writing SQL migrations.
+
+// --- COLUMN TYPES (actual PostgreSQL types) ---
+// Use this to know the real database type when writing migrations.
+// "string" in TypeScript types above may be uuid, text, varchar, timestamptz, etc.
+// Table: attachments
+//   id: uuid (not null, default: gen_random_uuid())
+//   note_id: uuid (not null)
+//   file_name: text (not null)
+//   file_type: text (not null)
+//   file_size: integer (not null)
+//   file_url: text (not null)
+//   created_at: timestamp with time zone (not null, default: now())
+// Table: folders
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   name: text (not null)
+//   parent_folder_id: uuid (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
+// Table: notes
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   folder_id: uuid (not null)
+//   title: text (not null, default: ''::text)
+//   content: text (not null, default: ''::text)
+//   is_pinned: boolean (not null, default: false)
+//   pinned_at: timestamp with time zone (nullable)
+//   created_at: timestamp with time zone (not null, default: now())
+//   updated_at: timestamp with time zone (not null, default: now())
+
+// --- CONSTRAINTS ---
+// Table: attachments
+//   FOREIGN KEY attachments_note_id_fkey: FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+//   PRIMARY KEY attachments_pkey: PRIMARY KEY (id)
+// Table: folders
+//   FOREIGN KEY folders_parent_folder_id_fkey: FOREIGN KEY (parent_folder_id) REFERENCES folders(id) ON DELETE CASCADE
+//   PRIMARY KEY folders_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY folders_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: notes
+//   FOREIGN KEY notes_folder_id_fkey: FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE
+//   PRIMARY KEY notes_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY notes_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+
+// --- ROW LEVEL SECURITY POLICIES ---
+// Table: attachments
+//   Policy "Users can manage attachments of their notes" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (EXISTS ( SELECT 1    FROM notes   WHERE ((notes.id = attachments.note_id) AND (notes.user_id = auth.uid()))))
+//     WITH CHECK: (EXISTS ( SELECT 1    FROM notes   WHERE ((notes.id = attachments.note_id) AND (notes.user_id = auth.uid()))))
+// Table: folders
+//   Policy "Users can manage their own folders" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
+// Table: notes
+//   Policy "Users can manage their own notes" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
+
+// --- DATABASE FUNCTIONS ---
+// FUNCTION handle_new_user_folder()
+//   CREATE OR REPLACE FUNCTION public.handle_new_user_folder()
+//    RETURNS trigger
+//    LANGUAGE plpgsql
+//    SECURITY DEFINER
+//   AS $function$
+//   BEGIN
+//     INSERT INTO public.folders (user_id, name)
+//     VALUES (NEW.id, 'Minhas Notas');
+//     RETURN NEW;
+//   END;
+//   $function$
+//
