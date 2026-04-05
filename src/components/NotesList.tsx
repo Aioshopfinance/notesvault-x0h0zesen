@@ -5,7 +5,8 @@ import { cn } from '@/lib/utils'
 import useNotesStore from '@/stores/useNotesStore'
 
 export function NotesList() {
-  const { notes, selectedFolderId, selectedNoteId, setSelectedNoteId, addNote } = useNotesStore()
+  const { notes, selectedFolderId, selectedNoteId, setSelectedNoteId, addNote, isLoading } =
+    useNotesStore()
 
   const filteredNotes = notes
     .filter((n) => n.folderId === selectedFolderId)
@@ -17,16 +18,12 @@ export function NotesList() {
 
   const handleNewNote = () => {
     if (!selectedFolderId) return
-    const newNote = {
-      id: Date.now().toString(),
+    addNote({
       title: '',
       content: '',
       folderId: selectedFolderId,
       isPinned: false,
-      updatedAt: new Date().toISOString(),
-    }
-    addNote(newNote)
-    setSelectedNoteId(newNote.id)
+    })
   }
 
   return (
@@ -44,7 +41,11 @@ export function NotesList() {
       </div>
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-1">
-          {filteredNotes.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-10 text-muted-foreground text-sm animate-pulse">
+              Carregando notas...
+            </div>
+          ) : filteredNotes.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground text-sm">
               Nenhuma nota nesta pasta.
             </div>

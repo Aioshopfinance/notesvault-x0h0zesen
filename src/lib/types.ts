@@ -12,18 +12,3 @@ export interface Note {
   isPinned: boolean
   updatedAt: string
 }
-
-export interface Secret {
-  id: string
-  name: string
-  value: string
-  category: string
-}
-
-export interface AuditLog {
-  id: string
-  action: string
-  secretName: string
-  date: string
-  status: string
-}

@@ -42,9 +42,8 @@ export function AppSidebar() {
   const handleCreateFolder = () => {
     if (!newFolderName.trim()) return
     addFolder({
-      id: Date.now().toString(),
       name: newFolderName,
-      parentId: '1', // Defaulting to root 'Minhas Notas' for simplicity
+      parentId: selectedFolderId || (rootFolders.length > 0 ? rootFolders[0].id : null),
     })
     setNewFolderName('')
     setIsFolderModalOpen(false)

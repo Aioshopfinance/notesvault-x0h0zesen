@@ -26,7 +26,7 @@ export function NoteEditor() {
   const handleSave = () => {
     if (activeNote) {
       updateNote(activeNote.id, { title, content })
-      toast({ title: 'Nota salva localmente' })
+      toast({ title: 'Nota salva' })
     }
   }
 
