@@ -59,6 +59,7 @@ export default function Auth() {
       form.setError('email', { message: 'Este e-mail já está registrado.' })
       return
     }
+
     toast({
       variant: 'destructive',
       title: 'Erro na autenticação',
@@ -71,7 +72,6 @@ export default function Auth() {
     loginForm.clearErrors('root')
     const { error } = await signIn(values.email, values.password)
     setIsSubmitting(false)
-
     if (error) {
       handleAuthError(error, loginForm)
     } else {
@@ -85,7 +85,6 @@ export default function Auth() {
     registerForm.clearErrors('root')
     const { error } = await signUp(values.email, values.password)
     setIsSubmitting(false)
-
     if (error) {
       handleAuthError(error, registerForm)
     } else {
@@ -111,6 +110,7 @@ export default function Auth() {
               : 'Crie sua conta para começar a guardar suas notas'}
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           {mode === 'login' ? (
             <Form {...loginForm}>
@@ -136,11 +136,13 @@ export default function Auth() {
                     </FormItem>
                   )}
                 />
+
                 {loginForm.formState.errors.root && (
                   <div className="p-3 text-sm font-medium text-red-500 bg-red-500/10 border border-red-500/20 rounded-md">
                     {loginForm.formState.errors.root.message}
                   </div>
                 )}
+
                 <FormField
                   control={loginForm.control}
                   name="password"
@@ -163,10 +165,12 @@ export default function Auth() {
                     </FormItem>
                   )}
                 />
+
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
                   {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                   {isSubmitting ? 'Entrando...' : 'Entrar'}
                 </Button>
+
                 <div className="text-center text-sm mt-4">
                   <span className="text-muted-foreground">Não tem conta? </span>
                   <button
@@ -192,13 +196,11 @@ export default function Auth() {
                       <FormControl>
                         <Input
                           placeholder="seu@email.com"
-                          name={field.name}
-                          onBlur={field.onBlur}
-                          ref={field.ref}
-                          value={field.value || ''}
+                          {...field}
+                          disabled={isSubmitting}
                           onChange={(e) => {
                             console.log('Register email onChange capturado:', e.target.value)
-                            field.onChange(e.target.value)
+                            field.onChange(e)
                           }}
                         />
                       </FormControl>
@@ -206,6 +208,7 @@ export default function Auth() {
                     </FormItem>
                   )}
                 />
+
                 <FormField
                   control={registerForm.control}
                   name="password"
@@ -228,11 +231,13 @@ export default function Auth() {
                     </FormItem>
                   )}
                 />
+
                 {registerForm.formState.errors.root && (
                   <div className="p-3 text-sm font-medium text-red-500 bg-red-500/10 border border-red-500/20 rounded-md">
                     {registerForm.formState.errors.root.message}
                   </div>
                 )}
+
                 <FormField
                   control={registerForm.control}
                   name="confirmPassword"
@@ -255,10 +260,12 @@ export default function Auth() {
                     </FormItem>
                   )}
                 />
+
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
                   {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
                   {isSubmitting ? 'Criando Conta...' : 'Criar Conta'}
                 </Button>
+
                 <div className="text-center text-sm mt-4">
                   <span className="text-muted-foreground">Já tem conta? </span>
                   <button
