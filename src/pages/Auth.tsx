@@ -62,6 +62,7 @@ export default function Auth() {
   }
 
   const onLogin = async (values: z.infer<typeof loginSchema>) => {
+    console.log('Login submission started')
     setIsSubmitting(true)
     const { error } = await signIn(values.email, values.password)
     setIsSubmitting(false)
@@ -75,6 +76,7 @@ export default function Auth() {
   }
 
   const onRegister = async (values: z.infer<typeof registerSchema>) => {
+    console.log('Register submission started')
     setIsSubmitting(true)
     const { error } = await signUp(values.email, values.password)
     setIsSubmitting(false)
@@ -115,9 +117,17 @@ export default function Auth() {
                     <FormItem>
                       <FormLabel>E-mail</FormLabel>
                       <FormControl>
-                        <Input placeholder="seu@email.com" {...field} />
+                        <Input
+                          placeholder="seu@email.com"
+                          {...field}
+                          disabled={isSubmitting}
+                          onChange={(e) => {
+                            console.log('Login email onChange:', e.target.value)
+                            field.onChange(e)
+                          }}
+                        />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-500 font-medium" />
                     </FormItem>
                   )}
                 />
@@ -128,22 +138,32 @@ export default function Auth() {
                     <FormItem>
                       <FormLabel>Senha</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="••••••••" {...field} />
+                        <Input
+                          type="password"
+                          placeholder="••••••••"
+                          {...field}
+                          disabled={isSubmitting}
+                          onChange={(e) => {
+                            console.log('Login password onChange triggered')
+                            field.onChange(e)
+                          }}
+                        />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-500 font-medium" />
                     </FormItem>
                   )}
                 />
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
                   {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                  Entrar
+                  {isSubmitting ? 'Entrando...' : 'Entrar'}
                 </Button>
                 <div className="text-center text-sm mt-4">
                   <span className="text-muted-foreground">Não tem conta? </span>
                   <button
                     type="button"
                     onClick={() => setMode('register')}
-                    className="text-primary hover:underline font-medium"
+                    className="text-primary hover:underline font-medium disabled:opacity-50"
+                    disabled={isSubmitting}
                   >
                     Registre-se
                   </button>
@@ -160,9 +180,17 @@ export default function Auth() {
                     <FormItem>
                       <FormLabel>E-mail</FormLabel>
                       <FormControl>
-                        <Input placeholder="seu@email.com" {...field} />
+                        <Input
+                          placeholder="seu@email.com"
+                          {...field}
+                          disabled={isSubmitting}
+                          onChange={(e) => {
+                            console.log('Register email onChange:', e.target.value)
+                            field.onChange(e)
+                          }}
+                        />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-500 font-medium" />
                     </FormItem>
                   )}
                 />
@@ -173,9 +201,18 @@ export default function Auth() {
                     <FormItem>
                       <FormLabel>Senha</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="Mínimo 8 caracteres" {...field} />
+                        <Input
+                          type="password"
+                          placeholder="Mínimo 8 caracteres"
+                          {...field}
+                          disabled={isSubmitting}
+                          onChange={(e) => {
+                            console.log('Register password onChange triggered')
+                            field.onChange(e)
+                          }}
+                        />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-500 font-medium" />
                     </FormItem>
                   )}
                 />
@@ -186,22 +223,32 @@ export default function Auth() {
                     <FormItem>
                       <FormLabel>Confirmar Senha</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="Repita sua senha" {...field} />
+                        <Input
+                          type="password"
+                          placeholder="Repita sua senha"
+                          {...field}
+                          disabled={isSubmitting}
+                          onChange={(e) => {
+                            console.log('Register confirmPassword onChange triggered')
+                            field.onChange(e)
+                          }}
+                        />
                       </FormControl>
-                      <FormMessage />
+                      <FormMessage className="text-red-500 font-medium" />
                     </FormItem>
                   )}
                 />
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
                   {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                  Criar Conta
+                  {isSubmitting ? 'Criando Conta...' : 'Criar Conta'}
                 </Button>
                 <div className="text-center text-sm mt-4">
                   <span className="text-muted-foreground">Já tem conta? </span>
                   <button
                     type="button"
                     onClick={() => setMode('login')}
-                    className="text-primary hover:underline font-medium"
+                    className="text-primary hover:underline font-medium disabled:opacity-50"
+                    disabled={isSubmitting}
                   >
                     Faça login
                   </button>
