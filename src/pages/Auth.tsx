@@ -7,7 +7,6 @@ import { Shield, Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Form,
@@ -34,31 +33,46 @@ const registerSchema = z
     path: ['confirmPassword'],
   })
 
+const baseInputClassName =
+  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
+
 export default function Auth() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
   const { signIn, signUp, user, loading } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
 
   const loginForm = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: {
+      email: '',
+      password: '',
+    },
   })
 
   const registerForm = useForm<z.infer<typeof registerSchema>>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { email: '', password: '', confirmPassword: '' },
+    defaultValues: {
+      email: '',
+      password: '',
+      confirmPassword: '',
+    },
   })
 
   const handleAuthError = (error: any, form: any) => {
     if (error?.message?.includes('Invalid login credentials')) {
-      form.setError('root', { message: 'Credenciais inválidas. Verifique seu e-mail e senha.' })
+      form.setError('root', {
+        message: 'Credenciais inválidas. Verifique seu e-mail e senha.',
+      })
       return
     }
 
     if (error?.message?.includes('User already registered')) {
-      form.setError('email', { message: 'Este e-mail já está registrado.' })
+      form.setError('email', {
+        message: 'Este e-mail já está registrado.',
+      })
       return
     }
 
@@ -70,45 +84,49 @@ export default function Auth() {
   }
 
   const onLogin = async (values: z.infer<typeof loginSchema>) => {
-    setIsSubmitting(true)
-    loginForm.clearErrors('root')
+    try {
+      setIsSubmitting(true)
+      loginForm.clearErrors('root')
 
-    const { error } = await signIn(values.email, values.password)
+      const { error } = await signIn(values.email, values.password)
 
-    setIsSubmitting(false)
+      if (error) {
+        handleAuthError(error, loginForm)
+        return
+      }
 
-    if (error) {
-      handleAuthError(error, loginForm)
-      return
+      toast({
+        title: 'Bem-vindo de volta!',
+        description: 'Login realizado com sucesso.',
+      })
+
+      navigate('/')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    toast({
-      title: 'Bem-vindo de volta!',
-      description: 'Login realizado com sucesso.',
-    })
-
-    navigate('/')
   }
 
   const onRegister = async (values: z.infer<typeof registerSchema>) => {
-    setIsSubmitting(true)
-    registerForm.clearErrors('root')
+    try {
+      setIsSubmitting(true)
+      registerForm.clearErrors('root')
 
-    const { error } = await signUp(values.email, values.password)
+      const { error } = await signUp(values.email, values.password)
 
-    setIsSubmitting(false)
+      if (error) {
+        handleAuthError(error, registerForm)
+        return
+      }
 
-    if (error) {
-      handleAuthError(error, registerForm)
-      return
+      toast({
+        title: 'Conta criada!',
+        description: 'Sua conta foi criada com sucesso.',
+      })
+
+      navigate('/')
+    } finally {
+      setIsSubmitting(false)
     }
-
-    toast({
-      title: 'Conta criada!',
-      description: 'Sua conta foi criada com sucesso.',
-    })
-
-    navigate('/')
   }
 
   if (loading) return null
@@ -142,12 +160,18 @@ export default function Auth() {
                     <FormItem>
                       <FormLabel>E-mail</FormLabel>
                       <FormControl>
-                        <Input
-                          type="email"
+                        <input
+                          type="text"
+                          inputMode="email"
+                          autoComplete="username"
                           placeholder="seu@email.com"
-                          autoComplete="email"
                           disabled={isSubmitting}
-                          {...field}
+                          value={field.value || ''}
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          className={baseInputClassName}
                         />
                       </FormControl>
                       <FormMessage className="font-medium text-red-500" />
@@ -168,12 +192,17 @@ export default function Auth() {
                     <FormItem>
                       <FormLabel>Senha</FormLabel>
                       <FormControl>
-                        <Input
+                        <input
                           type="password"
-                          placeholder="••••••••"
                           autoComplete="current-password"
+                          placeholder="••••••••"
                           disabled={isSubmitting}
-                          {...field}
+                          value={field.value || ''}
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          className={baseInputClassName}
                         />
                       </FormControl>
                       <FormMessage className="font-medium text-red-500" />
@@ -209,16 +238,18 @@ export default function Auth() {
                     <FormItem>
                       <FormLabel>E-mail</FormLabel>
                       <FormControl>
-                        <Input
-                          type="email"
+                        <input
+                          type="text"
+                          inputMode="email"
+                          autoComplete="username"
                           placeholder="seu@email.com"
-                          autoComplete="email"
                           disabled={isSubmitting}
                           value={field.value || ''}
                           name={field.name}
                           onBlur={field.onBlur}
                           ref={field.ref}
                           onChange={(e) => field.onChange(e.target.value)}
+                          className={baseInputClassName}
                         />
                       </FormControl>
                       <FormMessage className="font-medium text-red-500" />
@@ -233,12 +264,17 @@ export default function Auth() {
                     <FormItem>
                       <FormLabel>Senha</FormLabel>
                       <FormControl>
-                        <Input
+                        <input
                           type="password"
-                          placeholder="Mínimo 8 caracteres"
                           autoComplete="new-password"
+                          placeholder="Mínimo 8 caracteres"
                           disabled={isSubmitting}
-                          {...field}
+                          value={field.value || ''}
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          className={baseInputClassName}
                         />
                       </FormControl>
                       <FormMessage className="font-medium text-red-500" />
@@ -259,12 +295,17 @@ export default function Auth() {
                     <FormItem>
                       <FormLabel>Confirmar Senha</FormLabel>
                       <FormControl>
-                        <Input
+                        <input
                           type="password"
-                          placeholder="Repita sua senha"
                           autoComplete="new-password"
+                          placeholder="Repita sua senha"
                           disabled={isSubmitting}
-                          {...field}
+                          value={field.value || ''}
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                          onChange={(e) => field.onChange(e.target.value)}
+                          className={baseInputClassName}
                         />
                       </FormControl>
                       <FormMessage className="font-medium text-red-500" />
