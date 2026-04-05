@@ -192,11 +192,13 @@ export default function Auth() {
                       <FormControl>
                         <Input
                           placeholder="seu@email.com"
-                          {...field}
-                          disabled={isSubmitting}
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                          value={field.value || ''}
                           onChange={(e) => {
-                            console.log('Register email onChange:', e.target.value)
-                            field.onChange(e)
+                            console.log('Register email onChange capturado:', e.target.value)
+                            field.onChange(e.target.value)
                           }}
                         />
                       </FormControl>
