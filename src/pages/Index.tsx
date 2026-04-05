@@ -1,12 +1,46 @@
-/* Home Page - Replace this page layout, components, content, behavior with what you want and translate to the language of the user */
-const Index = () => {
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
+import { NotesList } from '@/components/NotesList'
+import { NoteEditor } from '@/components/NoteEditor'
+import useNotesStore from '@/stores/useNotesStore'
+
+export default function Index() {
+  const { folders, selectedFolderId } = useNotesStore()
+
+  const currentFolder = folders.find((f) => f.id === selectedFolderId)
+  const parentFolder = currentFolder?.parentId
+    ? folders.find((f) => f.id === currentFolder.parentId)
+    : null
+
   return (
-    <div className="container mx-auto py-8 px-4">
-      <h1 className="text-3xl font-bold mb-6">
-        This is a example page ready to be rewritten with your own content
-      </h1>
+    <div className="flex flex-col h-full w-full">
+      <div className="h-10 border-b flex items-center px-4 bg-background shrink-0">
+        <Breadcrumb>
+          <BreadcrumbList>
+            {parentFolder && (
+              <>
+                <BreadcrumbItem>
+                  <BreadcrumbLink href="#">{parentFolder.name}</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+              </>
+            )}
+            <BreadcrumbItem>
+              <BreadcrumbPage>{currentFolder?.name || 'Selecione uma pasta'}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+      <div className="flex flex-1 overflow-hidden">
+        <NotesList />
+        <NoteEditor />
+      </div>
     </div>
   )
 }
-
-export default Index
