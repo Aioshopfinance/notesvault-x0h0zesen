@@ -3,16 +3,24 @@ import { Button } from '@/components/ui/button'
 import { useTheme } from '@/components/theme-provider'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/hooks/use-auth'
+import { useNavigate } from 'react-router-dom'
 
 export function Header() {
   const { theme, setTheme } = useTheme()
   const { toast } = useToast()
+  const { signOut } = useAuth()
+  const navigate = useNavigate()
 
-  const handleLogout = () => {
-    toast({
-      title: 'Sessão encerrada',
-      description: 'Você saiu do NotesVault com sucesso.',
-    })
+  const handleLogout = async () => {
+    const { error } = await signOut()
+    if (!error) {
+      toast({
+        title: 'Sessão encerrada',
+        description: 'Você saiu do NotesVault com sucesso.',
+      })
+      navigate('/auth')
+    }
   }
 
   return (

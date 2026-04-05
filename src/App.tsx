@@ -8,23 +8,31 @@ import Scanner from '@/pages/Scanner'
 import Secrets from '@/pages/Secrets'
 import Audit from '@/pages/Audit'
 import NotFound from '@/pages/NotFound'
+import Auth from '@/pages/Auth'
+import { AuthProvider } from '@/hooks/use-auth'
+import { ProtectedRoute } from '@/components/ProtectedRoute'
 
 const App = () => (
-  <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Index />} />
-          <Route path="/scanner" element={<Scanner />} />
-          <Route path="/secrets" element={<Secrets />} />
-          <Route path="/audit" element={<Audit />} />
-        </Route>
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </TooltipProvider>
-  </BrowserRouter>
+  <AuthProvider>
+    <BrowserRouter future={{ v7_startTransition: false, v7_relativeSplatPath: false }}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <Routes>
+          <Route path="/auth" element={<Auth />} />
+          <Route element={<ProtectedRoute />}>
+            <Route element={<Layout />}>
+              <Route path="/" element={<Index />} />
+              <Route path="/scanner" element={<Scanner />} />
+              <Route path="/secrets" element={<Secrets />} />
+              <Route path="/audit" element={<Audit />} />
+            </Route>
+          </Route>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </TooltipProvider>
+    </BrowserRouter>
+  </AuthProvider>
 )
 
 export default App
