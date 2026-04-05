@@ -55,7 +55,9 @@ export default function Auth() {
     if (error?.message?.includes('Invalid login credentials')) {
       form.setError('root', { message: 'Credenciais inválidas. Verifique seu e-mail e senha.' })
       return
-    } else if (error?.message?.includes('User already registered')) {
+    }
+
+    if (error?.message?.includes('User already registered')) {
       form.setError('email', { message: 'Este e-mail já está registrado.' })
       return
     }
@@ -70,27 +72,43 @@ export default function Auth() {
   const onLogin = async (values: z.infer<typeof loginSchema>) => {
     setIsSubmitting(true)
     loginForm.clearErrors('root')
+
     const { error } = await signIn(values.email, values.password)
+
     setIsSubmitting(false)
+
     if (error) {
       handleAuthError(error, loginForm)
-    } else {
-      toast({ title: 'Bem-vindo de volta!', description: 'Login realizado com sucesso.' })
-      navigate('/')
+      return
     }
+
+    toast({
+      title: 'Bem-vindo de volta!',
+      description: 'Login realizado com sucesso.',
+    })
+
+    navigate('/')
   }
 
   const onRegister = async (values: z.infer<typeof registerSchema>) => {
     setIsSubmitting(true)
     registerForm.clearErrors('root')
+
     const { error } = await signUp(values.email, values.password)
+
     setIsSubmitting(false)
+
     if (error) {
       handleAuthError(error, registerForm)
-    } else {
-      toast({ title: 'Conta criada!', description: 'Sua conta foi criada com sucesso.' })
-      navigate('/')
+      return
     }
+
+    toast({
+      title: 'Conta criada!',
+      description: 'Sua conta foi criada com sucesso.',
+    })
+
+    navigate('/')
   }
 
   if (loading) return null
@@ -100,10 +118,12 @@ export default function Auth() {
     <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md shadow-lg animate-fade-in-up">
         <CardHeader className="space-y-1 flex flex-col items-center text-center">
-          <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-            <Shield className="w-6 h-6 text-primary" />
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+            <Shield className="h-6 w-6 text-primary" />
           </div>
+
           <CardTitle className="text-2xl font-bold tracking-tight">NotesVault</CardTitle>
+
           <CardDescription>
             {mode === 'login'
               ? 'Faça login para acessar suas notas seguras'
@@ -123,22 +143,20 @@ export default function Auth() {
                       <FormLabel>E-mail</FormLabel>
                       <FormControl>
                         <Input
+                          type="email"
                           placeholder="seu@email.com"
-                          {...field}
+                          autoComplete="email"
                           disabled={isSubmitting}
-                          onChange={(e) => {
-                            console.log('Login email onChange:', e.target.value)
-                            field.onChange(e)
-                          }}
+                          {...field}
                         />
                       </FormControl>
-                      <FormMessage className="text-red-500 font-medium" />
+                      <FormMessage className="font-medium text-red-500" />
                     </FormItem>
                   )}
                 />
 
                 {loginForm.formState.errors.root && (
-                  <div className="p-3 text-sm font-medium text-red-500 bg-red-500/10 border border-red-500/20 rounded-md">
+                  <div className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm font-medium text-red-500">
                     {loginForm.formState.errors.root.message}
                   </div>
                 )}
@@ -153,30 +171,27 @@ export default function Auth() {
                         <Input
                           type="password"
                           placeholder="••••••••"
-                          {...field}
+                          autoComplete="current-password"
                           disabled={isSubmitting}
-                          onChange={(e) => {
-                            console.log('Login password onChange triggered')
-                            field.onChange(e)
-                          }}
+                          {...field}
                         />
                       </FormControl>
-                      <FormMessage className="text-red-500 font-medium" />
+                      <FormMessage className="font-medium text-red-500" />
                     </FormItem>
                   )}
                 />
 
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {isSubmitting ? 'Entrando...' : 'Entrar'}
                 </Button>
 
-                <div className="text-center text-sm mt-4">
+                <div className="mt-4 text-center text-sm">
                   <span className="text-muted-foreground">Não tem conta? </span>
                   <button
                     type="button"
                     onClick={() => setMode('register')}
-                    className="text-primary hover:underline font-medium disabled:opacity-50"
+                    className="font-medium text-primary hover:underline disabled:opacity-50"
                     disabled={isSubmitting}
                   >
                     Registre-se
@@ -195,16 +210,18 @@ export default function Auth() {
                       <FormLabel>E-mail</FormLabel>
                       <FormControl>
                         <Input
+                          type="email"
                           placeholder="seu@email.com"
-                          {...field}
+                          autoComplete="email"
                           disabled={isSubmitting}
-                          onChange={(e) => {
-                            console.log('Register email onChange capturado:', e.target.value)
-                            field.onChange(e)
-                          }}
+                          value={field.value || ''}
+                          name={field.name}
+                          onBlur={field.onBlur}
+                          ref={field.ref}
+                          onChange={(e) => field.onChange(e.target.value)}
                         />
                       </FormControl>
-                      <FormMessage className="text-red-500 font-medium" />
+                      <FormMessage className="font-medium text-red-500" />
                     </FormItem>
                   )}
                 />
@@ -219,21 +236,18 @@ export default function Auth() {
                         <Input
                           type="password"
                           placeholder="Mínimo 8 caracteres"
-                          {...field}
+                          autoComplete="new-password"
                           disabled={isSubmitting}
-                          onChange={(e) => {
-                            console.log('Register password onChange triggered')
-                            field.onChange(e)
-                          }}
+                          {...field}
                         />
                       </FormControl>
-                      <FormMessage className="text-red-500 font-medium" />
+                      <FormMessage className="font-medium text-red-500" />
                     </FormItem>
                   )}
                 />
 
                 {registerForm.formState.errors.root && (
-                  <div className="p-3 text-sm font-medium text-red-500 bg-red-500/10 border border-red-500/20 rounded-md">
+                  <div className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm font-medium text-red-500">
                     {registerForm.formState.errors.root.message}
                   </div>
                 )}
@@ -248,30 +262,27 @@ export default function Auth() {
                         <Input
                           type="password"
                           placeholder="Repita sua senha"
-                          {...field}
+                          autoComplete="new-password"
                           disabled={isSubmitting}
-                          onChange={(e) => {
-                            console.log('Register confirmPassword onChange triggered')
-                            field.onChange(e)
-                          }}
+                          {...field}
                         />
                       </FormControl>
-                      <FormMessage className="text-red-500 font-medium" />
+                      <FormMessage className="font-medium text-red-500" />
                     </FormItem>
                   )}
                 />
 
                 <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {isSubmitting ? 'Criando Conta...' : 'Criar Conta'}
                 </Button>
 
-                <div className="text-center text-sm mt-4">
+                <div className="mt-4 text-center text-sm">
                   <span className="text-muted-foreground">Já tem conta? </span>
                   <button
                     type="button"
                     onClick={() => setMode('login')}
-                    className="text-primary hover:underline font-medium disabled:opacity-50"
+                    className="font-medium text-primary hover:underline disabled:opacity-50"
                     disabled={isSubmitting}
                   >
                     Faça login
