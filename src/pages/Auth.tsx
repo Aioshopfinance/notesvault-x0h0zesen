@@ -1,37 +1,16 @@
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
 import { Shield, Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
-
-const loginSchema = z.object({
-  email: z.string().email('E-mail inválido'),
-  password: z.string().min(1, 'A senha é obrigatória'),
-})
-
-const registerSchema = z
-  .object({
-    email: z.string().email('E-mail inválido'),
-    password: z.string().min(8, 'A senha deve ter no mínimo 8 caracteres'),
-    confirmPassword: z.string().min(1, 'Confirmação de senha é obrigatória'),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: 'As senhas não coincidem',
-    path: ['confirmPassword'],
-  })
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 
 const baseInputClassName =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
@@ -40,58 +19,48 @@ export default function Auth() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [registerEmail, setRegisterEmail] = useState('')
+  const [registerPassword, setRegisterPassword] = useState('')
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState('')
+
+  const [loginError, setLoginError] = useState('')
+  const [registerError, setRegisterError] = useState('')
+
   const { signIn, signUp, user, loading } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
 
-  const loginForm = useForm<z.infer<typeof loginSchema>>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-    },
-  })
-
-  const registerForm = useForm<z.infer<typeof registerSchema>>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-      confirmPassword: '',
-    },
-  })
-
-  const handleAuthError = (error: any, form: any) => {
-    if (error?.message?.includes('Invalid login credentials')) {
-      form.setError('root', {
-        message: 'Credenciais inválidas. Verifique seu e-mail e senha.',
-      })
-      return
-    }
-
-    if (error?.message?.includes('User already registered')) {
-      form.setError('email', {
-        message: 'Este e-mail já está registrado.',
-      })
-      return
-    }
-
-    toast({
-      variant: 'destructive',
-      title: 'Erro na autenticação',
-      description: error?.message || 'Ocorreu um erro ao processar sua solicitação.',
-    })
+  const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
   }
 
-  const onLogin = async (values: z.infer<typeof loginSchema>) => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoginError('')
+
+    if (!isValidEmail(loginEmail)) {
+      setLoginError('Digite um e-mail válido.')
+      return
+    }
+
+    if (!loginPassword.trim()) {
+      setLoginError('Digite sua senha.')
+      return
+    }
+
     try {
       setIsSubmitting(true)
-      loginForm.clearErrors('root')
 
-      const { error } = await signIn(values.email, values.password)
+      const { error } = await signIn(loginEmail.trim(), loginPassword)
 
       if (error) {
-        handleAuthError(error, loginForm)
+        setLoginError(
+          error.message?.includes('Invalid login credentials')
+            ? 'Credenciais inválidas. Verifique seu e-mail e senha.'
+            : error.message || 'Erro ao fazer login.'
+        )
         return
       }
 
@@ -106,15 +75,41 @@ export default function Auth() {
     }
   }
 
-  const onRegister = async (values: z.infer<typeof registerSchema>) => {
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setRegisterError('')
+
+    if (!isValidEmail(registerEmail)) {
+      setRegisterError('Digite um e-mail válido.')
+      return
+    }
+
+    if (registerPassword.length < 8) {
+      setRegisterError('A senha deve ter no mínimo 8 caracteres.')
+      return
+    }
+
+    if (!registerConfirmPassword) {
+      setRegisterError('Confirme sua senha.')
+      return
+    }
+
+    if (registerPassword !== registerConfirmPassword) {
+      setRegisterError('As senhas não coincidem.')
+      return
+    }
+
     try {
       setIsSubmitting(true)
-      registerForm.clearErrors('root')
 
-      const { error } = await signUp(values.email, values.password)
+      const { error } = await signUp(registerEmail.trim(), registerPassword)
 
       if (error) {
-        handleAuthError(error, registerForm)
+        setRegisterError(
+          error.message?.includes('User already registered')
+            ? 'Este e-mail já está registrado.'
+            : error.message || 'Erro ao criar conta.'
+        )
         return
       }
 
@@ -140,7 +135,9 @@ export default function Auth() {
             <Shield className="h-6 w-6 text-primary" />
           </div>
 
-          <CardTitle className="text-2xl font-bold tracking-tight">NotesVault</CardTitle>
+          <CardTitle className="text-2xl font-bold tracking-tight">
+            NotesVault
+          </CardTitle>
 
           <CardDescription>
             {mode === 'login'
@@ -151,190 +148,140 @@ export default function Auth() {
 
         <CardContent>
           {mode === 'login' ? (
-            <Form {...loginForm}>
-              <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
-                <FormField
-                  control={loginForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>E-mail</FormLabel>
-                      <FormControl>
-                        <input
-                          type="email"
-                          autoComplete="username"
-                          placeholder="seu@email.com"
-                          disabled={isSubmitting}
-                          value={field.value || ''}
-                          name={field.name}
-                          onBlur={field.onBlur}
-                          ref={field.ref}
-                          onChange={(e) => field.onChange(e.target.value)}
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onKeyDown={(e) => e.stopPropagation()}
-                          className={baseInputClassName}
-                          data-skip-ignore="true"
-                        />
-                      </FormControl>
-                      <FormMessage className="font-medium text-red-500" />
-                    </FormItem>
-                  )}
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">E-mail</label>
+                <input
+                  type="email"
+                  autoComplete="username"
+                  placeholder="seu@email.com"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  disabled={isSubmitting}
+                  className={baseInputClassName}
+                  data-skip-ignore="true"
+                  style={{ pointerEvents: 'auto' }}
                 />
+              </div>
 
-                {loginForm.formState.errors.root && (
-                  <div className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm font-medium text-red-500">
-                    {loginForm.formState.errors.root.message}
-                  </div>
-                )}
-
-                <FormField
-                  control={loginForm.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Senha</FormLabel>
-                      <FormControl>
-                        <input
-                          type="password"
-                          autoComplete="current-password"
-                          placeholder="••••••••"
-                          disabled={isSubmitting}
-                          value={field.value || ''}
-                          name={field.name}
-                          onBlur={field.onBlur}
-                          ref={field.ref}
-                          onChange={(e) => field.onChange(e.target.value)}
-                          className={baseInputClassName}
-                        />
-                      </FormControl>
-                      <FormMessage className="font-medium text-red-500" />
-                    </FormItem>
-                  )}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Senha</label>
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  disabled={isSubmitting}
+                  className={baseInputClassName}
+                  data-skip-ignore="true"
+                  style={{ pointerEvents: 'auto' }}
                 />
+              </div>
 
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {isSubmitting ? 'Entrando...' : 'Entrar'}
-                </Button>
-
-                <div className="mt-4 text-center text-sm">
-                  <span className="text-muted-foreground">Não tem conta? </span>
-                  <button
-                    type="button"
-                    onClick={() => setMode('register')}
-                    className="font-medium text-primary hover:underline disabled:opacity-50"
-                    disabled={isSubmitting}
-                  >
-                    Registre-se
-                  </button>
+              {loginError ? (
+                <div className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm font-medium text-red-500">
+                  {loginError}
                 </div>
-              </form>
-            </Form>
+              ) : null}
+
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                {isSubmitting ? 'Entrando...' : 'Entrar'}
+              </Button>
+
+              <div className="mt-4 text-center text-sm">
+                <span className="text-muted-foreground">Não tem conta? </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('register')
+                    setLoginError('')
+                  }}
+                  className="font-medium text-primary hover:underline disabled:opacity-50"
+                  disabled={isSubmitting}
+                >
+                  Registre-se
+                </button>
+              </div>
+            </form>
           ) : (
-            <Form {...registerForm}>
-              <form onSubmit={registerForm.handleSubmit(onRegister)} className="space-y-4">
-                <FormField
-                  control={registerForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>E-mail</FormLabel>
-                      <FormControl>
-                        <input
-                          type="email"
-                          autoComplete="username"
-                          placeholder="seu@email.com"
-                          disabled={isSubmitting}
-                          value={field.value || ''}
-                          name={field.name}
-                          onBlur={field.onBlur}
-                          ref={field.ref}
-                          onChange={(e) => field.onChange(e.target.value)}
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onKeyDown={(e) => e.stopPropagation()}
-                          className={baseInputClassName}
-                          data-skip-ignore="true"
-                        />
-                      </FormControl>
-                      <FormMessage className="font-medium text-red-500" />
-                    </FormItem>
-                  )}
+            <form onSubmit={handleRegister} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">E-mail</label>
+                <input
+                  type="email"
+                  autoComplete="username"
+                  placeholder="seu@email.com"
+                  value={registerEmail}
+                  onChange={(e) => setRegisterEmail(e.target.value)}
+                  disabled={isSubmitting}
+                  className={baseInputClassName}
+                  data-skip-ignore="true"
+                  style={{ pointerEvents: 'auto' }}
                 />
+              </div>
 
-                <FormField
-                  control={registerForm.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Senha</FormLabel>
-                      <FormControl>
-                        <input
-                          type="password"
-                          autoComplete="new-password"
-                          placeholder="Mínimo 8 caracteres"
-                          disabled={isSubmitting}
-                          value={field.value || ''}
-                          name={field.name}
-                          onBlur={field.onBlur}
-                          ref={field.ref}
-                          onChange={(e) => field.onChange(e.target.value)}
-                          className={baseInputClassName}
-                        />
-                      </FormControl>
-                      <FormMessage className="font-medium text-red-500" />
-                    </FormItem>
-                  )}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Senha</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Mínimo 8 caracteres"
+                  value={registerPassword}
+                  onChange={(e) => setRegisterPassword(e.target.value)}
+                  disabled={isSubmitting}
+                  className={baseInputClassName}
+                  data-skip-ignore="true"
+                  style={{ pointerEvents: 'auto' }}
                 />
+              </div>
 
-                {registerForm.formState.errors.root && (
-                  <div className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm font-medium text-red-500">
-                    {registerForm.formState.errors.root.message}
-                  </div>
-                )}
-
-                <FormField
-                  control={registerForm.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirmar Senha</FormLabel>
-                      <FormControl>
-                        <input
-                          type="password"
-                          autoComplete="new-password"
-                          placeholder="Repita sua senha"
-                          disabled={isSubmitting}
-                          value={field.value || ''}
-                          name={field.name}
-                          onBlur={field.onBlur}
-                          ref={field.ref}
-                          onChange={(e) => field.onChange(e.target.value)}
-                          className={baseInputClassName}
-                        />
-                      </FormControl>
-                      <FormMessage className="font-medium text-red-500" />
-                    </FormItem>
-                  )}
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Confirmar Senha</label>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="Repita sua senha"
+                  value={registerConfirmPassword}
+                  onChange={(e) => setRegisterConfirmPassword(e.target.value)}
+                  disabled={isSubmitting}
+                  className={baseInputClassName}
+                  data-skip-ignore="true"
+                  style={{ pointerEvents: 'auto' }}
                 />
+              </div>
 
-                <Button type="submit" className="w-full" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {isSubmitting ? 'Criando Conta...' : 'Criar Conta'}
-                </Button>
-
-                <div className="mt-4 text-center text-sm">
-                  <span className="text-muted-foreground">Já tem conta? </span>
-                  <button
-                    type="button"
-                    onClick={() => setMode('login')}
-                    className="font-medium text-primary hover:underline disabled:opacity-50"
-                    disabled={isSubmitting}
-                  >
-                    Faça login
-                  </button>
+              {registerError ? (
+                <div className="rounded-md border border-red-500/20 bg-red-500/10 p-3 text-sm font-medium text-red-500">
+                  {registerError}
                 </div>
-              </form>
-            </Form>
+              ) : null}
+
+              <Button type="submit" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : null}
+                {isSubmitting ? 'Criando Conta...' : 'Criar Conta'}
+              </Button>
+
+              <div className="mt-4 text-center text-sm">
+                <span className="text-muted-foreground">Já tem conta? </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('login')
+                    setRegisterError('')
+                  }}
+                  className="font-medium text-primary hover:underline disabled:opacity-50"
+                  disabled={isSubmitting}
+                >
+                  Faça login
+                </button>
+              </div>
+            </form>
           )}
         </CardContent>
       </Card>
