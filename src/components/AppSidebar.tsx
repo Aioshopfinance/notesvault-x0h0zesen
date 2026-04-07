@@ -1,4 +1,13 @@
-import { FolderPlus, ScanLine, KeyRound, Activity, FileText, ChevronRight, Pin } from 'lucide-react'
+import {
+  FolderPlus,
+  ScanLine,
+  KeyRound,
+  Activity,
+  FileText,
+  ChevronRight,
+  Pin,
+  Clock,
+} from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import {
@@ -89,6 +98,13 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild isActive={location.pathname === '/audit'}>
                     <Link to="/audit">
                       <Activity /> Log de Auditoria
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location.pathname === '/timesheet'}>
+                    <Link to="/timesheet">
+                      <Clock /> Banco de Horas
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

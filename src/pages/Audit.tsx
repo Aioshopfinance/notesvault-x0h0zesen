@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Loader2,
   AlertCircle,
+  FilterX,
 } from 'lucide-react'
 import {
   Table,
@@ -18,6 +19,14 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { supabase } from '@/lib/supabase/client'
 
 const actionMap: Record<string, string> = {
@@ -34,50 +43,47 @@ export default function Audit() {
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
+
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [action, setAction] = useState('all')
+  const [search, setSearch] = useState('')
   const itemsPerPage = 10
 
   useEffect(() => {
     const fetchLogs = async () => {
       setLoading(true)
-      setError(null)
-
       const from = (page - 1) * itemsPerPage
-      const to = from + itemsPerPage - 1
+      let query: any = supabase
+        .from('secret_access_logs')
+        .select(`id, action, timestamp, secrets!inner(name)`, { count: 'exact' })
+        .order('timestamp', { ascending: false })
+        .range(from, from + itemsPerPage - 1)
 
-      try {
-        const {
-          data,
-          error: supaError,
-          count,
-        } = await supabase
-          .from('secret_access_logs')
-          .select(
-            `
-            id,
-            action,
-            timestamp,
-            details,
-            secrets ( name )
-          `,
-            { count: 'exact' },
-          )
-          .order('timestamp', { ascending: false })
-          .range(from, to)
+      if (action !== 'all') query = query.eq('action', action)
+      if (startDate) query = query.gte('timestamp', `${startDate}T00:00:00Z`)
+      if (endDate) query = query.lte('timestamp', `${endDate}T23:59:59Z`)
+      if (search) query = query.ilike('secrets.name', `%${search}%`)
 
-        if (supaError) throw supaError
-
+      const { data, error: err, count } = await query
+      if (err) setError('Não foi possível carregar o log de auditoria.')
+      else {
         setLogs(data || [])
         setTotalCount(count || 0)
-      } catch (err: any) {
-        console.error(err)
-        setError('Não foi possível carregar o log de auditoria. Tente novamente mais tarde.')
-      } finally {
-        setLoading(false)
+        setError(null)
       }
+      setLoading(false)
     }
-
     fetchLogs()
-  }, [page])
+  }, [page, action, startDate, endDate, search])
+
+  const resetFilters = () => {
+    setStartDate('')
+    setEndDate('')
+    setAction('all')
+    setSearch('')
+    setPage(1)
+  }
 
   return (
     <div className="flex-1 overflow-auto p-4 md:p-8 bg-background">
@@ -99,6 +105,57 @@ export default function Audit() {
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 bg-card p-4 rounded-xl border shadow-sm">
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(e) => {
+              setStartDate(e.target.value)
+              setPage(1)
+            }}
+            title="Data Inicial"
+          />
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => {
+              setEndDate(e.target.value)
+              setPage(1)
+            }}
+            title="Data Final"
+          />
+          <Select
+            value={action}
+            onValueChange={(v) => {
+              setAction(v)
+              setPage(1)
+            }}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Filtrar Ação" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Ações</SelectItem>
+              <SelectItem value="view">Visualização</SelectItem>
+              <SelectItem value="copy">Cópia</SelectItem>
+              <SelectItem value="create">Criação</SelectItem>
+              <SelectItem value="update">Atualização</SelectItem>
+              <SelectItem value="delete">Deleção</SelectItem>
+            </SelectContent>
+          </Select>
+          <Input
+            placeholder="Buscar por secret..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
+          />
+          <Button variant="outline" onClick={resetFilters} className="flex gap-2">
+            <FilterX className="w-4 h-4" /> Limpar
+          </Button>
+        </div>
 
         <div className="bg-card border rounded-xl shadow-sm overflow-hidden flex flex-col">
           <div className="overflow-x-auto">
