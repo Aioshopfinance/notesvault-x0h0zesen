@@ -4,13 +4,7 @@ import { Shield, Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 
 const baseInputClassName =
   'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50'
@@ -59,7 +53,7 @@ export default function Auth() {
         setLoginError(
           error.message?.includes('Invalid login credentials')
             ? 'Credenciais inválidas. Verifique seu e-mail e senha.'
-            : error.message || 'Erro ao fazer login.'
+            : error.message || 'Erro ao fazer login.',
         )
         return
       }
@@ -108,7 +102,7 @@ export default function Auth() {
         setRegisterError(
           error.message?.includes('User already registered')
             ? 'Este e-mail já está registrado.'
-            : error.message || 'Erro ao criar conta.'
+            : error.message || 'Erro ao criar conta.',
         )
         return
       }
@@ -135,9 +129,7 @@ export default function Auth() {
             <Shield className="h-6 w-6 text-primary" />
           </div>
 
-          <CardTitle className="text-2xl font-bold tracking-tight">
-            NotesVault
-          </CardTitle>
+          <CardTitle className="text-2xl font-bold tracking-tight">NotesVault</CardTitle>
 
           <CardDescription>
             {mode === 'login'
@@ -186,9 +178,7 @@ export default function Auth() {
               ) : null}
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 {isSubmitting ? 'Entrando...' : 'Entrar'}
               </Button>
 
@@ -261,9 +251,7 @@ export default function Auth() {
               ) : null}
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : null}
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 {isSubmitting ? 'Criando Conta...' : 'Criar Conta'}
               </Button>
 
