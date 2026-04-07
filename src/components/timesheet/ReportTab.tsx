@@ -19,10 +19,54 @@ import {
 } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Printer, FileDown, CheckCircle } from 'lucide-react'
+import { Printer, FileDown, CheckCircle, Pencil } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+
+function EditableCell({ value, onSave }: { value: string; onSave: (val: string) => void }) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [val, setVal] = useState(value)
+
+  const handleBlur = () => {
+    setIsEditing(false)
+    if (val !== value) {
+      onSave(val)
+    }
+  }
+
+  if (isEditing) {
+    return (
+      <Input
+        autoFocus
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={handleBlur}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleBlur()
+          if (e.key === 'Escape') {
+            setVal(value)
+            setIsEditing(false)
+          }
+        }}
+        className="h-8 w-full min-w-[100px]"
+      />
+    )
+  }
+
+  return (
+    <div className="flex items-center group gap-2">
+      <span>{value}</span>
+      <button
+        onClick={() => setIsEditing(true)}
+        className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+      >
+        <Pencil className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  )
+}
 
 export default function ReportTab() {
-  const { rows, markAsPaid } = useTimesheetContext()
+  const { rows, markAsPaid, updateBulkRecords } = useTimesheetContext()
   const [clientFilter, setClientFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
 
@@ -34,16 +78,27 @@ export default function ReportTab() {
   const reportData = useMemo(() => {
     const grouped: Record<
       string,
-      { client: string; status: string; hours: number; value: number }
+      {
+        id: string
+        client: string
+        location: string
+        status: string
+        hours: number
+        value: number
+        ids: string[]
+      }
     > = {}
 
     rows.forEach((r) => {
       const c = r.client || 'Sem cliente'
+      const l = r.location || 'Sem local'
       const s = r.status
-      const key = `${c}-${s}`
-      if (!grouped[key]) grouped[key] = { client: c, status: s, hours: 0, value: 0 }
+      const key = `${c}-${l}-${s}`
+      if (!grouped[key])
+        grouped[key] = { id: key, client: c, location: l, status: s, hours: 0, value: 0, ids: [] }
       grouped[key].hours += r.wh
       grouped[key].value += r.dt
+      grouped[key].ids.push(r.id)
     })
 
     let result = Object.values(grouped)
@@ -117,6 +172,7 @@ export default function ReportTab() {
           <TableHeader className="bg-muted/50">
             <TableRow>
               <TableHead>Cliente</TableHead>
+              <TableHead>Local</TableHead>
               <TableHead className="text-right">Horas Totais</TableHead>
               <TableHead className="text-center">Status</TableHead>
               <TableHead className="text-right">Valor Total</TableHead>
@@ -126,22 +182,43 @@ export default function ReportTab() {
           <TableBody>
             {reportData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   Nenhum dado encontrado.
                 </TableCell>
               </TableRow>
             ) : (
-              reportData.map((row, i) => (
-                <TableRow key={i}>
-                  <TableCell className="font-medium">{row.client}</TableCell>
+              reportData.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell className="font-medium">
+                    <EditableCell
+                      value={row.client}
+                      onSave={(val) => updateBulkRecords(row.ids, 'client', val)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <EditableCell
+                      value={row.location}
+                      onSave={(val) => updateBulkRecords(row.ids, 'location', val)}
+                    />
+                  </TableCell>
                   <TableCell className="text-right">{row.hours.toFixed(2)}h</TableCell>
                   <TableCell className="text-center">
-                    <Badge
-                      variant={row.status === 'Pago' ? 'default' : 'secondary'}
-                      className={row.status === 'Pago' ? 'bg-green-500' : ''}
+                    <Select
+                      value={row.status}
+                      onValueChange={(val) => {
+                        if (val !== row.status) {
+                          updateBulkRecords(row.ids, 'status', val)
+                        }
+                      }}
                     >
-                      {row.status}
-                    </Badge>
+                      <SelectTrigger className="w-[120px] h-8 mx-auto">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Pendente">Pendente</SelectItem>
+                        <SelectItem value="Pago">Pago</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </TableCell>
                   <TableCell className="text-right font-bold">R$ {row.value.toFixed(2)}</TableCell>
                   <TableCell className="text-center print:hidden">
@@ -164,7 +241,9 @@ export default function ReportTab() {
           {reportData.length > 0 && (
             <TableFooter>
               <TableRow>
-                <TableCell className="font-bold">Total Geral</TableCell>
+                <TableCell colSpan={2} className="font-bold">
+                  Total Geral
+                </TableCell>
                 <TableCell className="text-right font-bold">
                   {reportData.reduce((a, b) => a + b.hours, 0).toFixed(2)}h
                 </TableCell>

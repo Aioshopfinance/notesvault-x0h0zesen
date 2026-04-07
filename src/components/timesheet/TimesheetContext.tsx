@@ -31,6 +31,7 @@ interface TimesheetContextData {
   loading: boolean
   addRecord: (payload: any) => Promise<boolean>
   updateRecord: (id: string, field: string, value: any) => Promise<boolean>
+  updateBulkRecords: (ids: string[], field: string, value: any) => Promise<boolean>
   markAsPaid: (client: string) => Promise<boolean>
 }
 
@@ -121,6 +122,28 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
     return true
   }
 
+  const updateBulkRecords = async (ids: string[], field: string, value: any) => {
+    if (!user) return false
+    const { error } = await supabase
+      .from('timesheets')
+      .update({ [field]: value })
+      .in('id', ids)
+
+    if (error) {
+      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' })
+      return false
+    }
+
+    if (field === 'status') {
+      toast({ title: 'Sucesso', description: `Status atualizado para ${value}` })
+    } else {
+      toast({ title: 'Sucesso', description: 'Campo atualizado com sucesso' })
+    }
+
+    fetchRecords(false)
+    return true
+  }
+
   const markAsPaid = async (client: string) => {
     if (!user) return false
     const { error } = await supabase
@@ -140,7 +163,9 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
   }
 
   return (
-    <Context.Provider value={{ rows, loading, addRecord, updateRecord, markAsPaid }}>
+    <Context.Provider
+      value={{ rows, loading, addRecord, updateRecord, updateBulkRecords, markAsPaid }}
+    >
       {children}
     </Context.Provider>
   )
