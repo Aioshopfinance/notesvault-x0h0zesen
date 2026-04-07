@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { Clock, Plus, Loader2 } from 'lucide-react'
 import {
   Table,
@@ -31,12 +31,33 @@ import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 
+const EditableCell = ({ value, type, onBlur, disabled, min, step }: any) => {
+  const [val, setVal] = useState(value)
+  useEffect(() => setVal(value), [value])
+
+  return (
+    <Input
+      type={type}
+      value={val}
+      min={min}
+      step={step}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={() => {
+        if (val !== value) onBlur(val)
+      }}
+      disabled={disabled}
+      className="h-8 w-full min-w-[70px] px-2 py-1 text-sm border-transparent hover:border-input focus:border-input bg-transparent shadow-none transition-colors"
+    />
+  )
+}
+
 export default function Timesheet() {
   const { user } = useAuth()
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<any[]>([])
   const [open, setOpen] = useState(false)
+  const [savingId, setSavingId] = useState<string | null>(null)
 
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -49,8 +70,8 @@ export default function Timesheet() {
     status: 'Pendente',
   })
 
-  const fetchRecords = async () => {
-    setLoading(true)
+  const fetchRecords = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true)
     const { data: records } = await (supabase as any)
       .from('timesheets')
       .select('*')
@@ -58,12 +79,12 @@ export default function Timesheet() {
       .order('start_time', { ascending: false })
 
     setData(records || [])
-    setLoading(false)
-  }
+    if (showLoading) setLoading(false)
+  }, [])
 
   useEffect(() => {
     if (user) fetchRecords()
-  }, [user])
+  }, [user, fetchRecords])
 
   const rows = useMemo(() => {
     return data.map((r) => {
@@ -94,6 +115,24 @@ export default function Timesheet() {
     }
   }
 
+  const handleUpdate = async (id: string, field: string, value: any) => {
+    setSavingId(id)
+    try {
+      const { error } = await (supabase as any)
+        .from('timesheets')
+        .update({ [field]: value })
+        .eq('id', id)
+
+      if (error) throw error
+      toast({ title: 'Sucesso', description: 'Registro atualizado e recalculado automaticamente.' })
+      await fetchRecords(false)
+    } catch (err: any) {
+      toast({ title: 'Erro ao atualizar', description: err.message, variant: 'destructive' })
+    } finally {
+      setSavingId(null)
+    }
+  }
+
   return (
     <div className="flex-1 overflow-auto p-4 md:p-8 bg-background">
       <div className="max-w-6xl mx-auto">
@@ -119,9 +158,9 @@ export default function Timesheet() {
                   <TableHead>Data</TableHead>
                   <TableHead>Entrada</TableHead>
                   <TableHead>Saída</TableHead>
-                  <TableHead>Intervalo</TableHead>
+                  <TableHead>Intervalo (h)</TableHead>
                   <TableHead>Horas</TableHead>
-                  <TableHead>Valor/h</TableHead>
+                  <TableHead>Valor/h (R$)</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Local</TableHead>
                   <TableHead>Status</TableHead>
@@ -148,11 +187,53 @@ export default function Timesheet() {
                       <TableCell className="whitespace-nowrap">
                         {new Date(r.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
                       </TableCell>
-                      <TableCell>{r.start_time.slice(0, 5)}</TableCell>
-                      <TableCell>{r.end_time.slice(0, 5)}</TableCell>
-                      <TableCell>{r.break_time}h</TableCell>
-                      <TableCell className="font-medium">{r.wh.toFixed(2)}h</TableCell>
-                      <TableCell>R$ {Number(r.hourly_rate).toFixed(2)}</TableCell>
+                      <TableCell className="p-1 min-w-[100px]">
+                        <EditableCell
+                          type="time"
+                          value={r.start_time.slice(0, 5)}
+                          disabled={savingId === r.id}
+                          onBlur={(v: string) => handleUpdate(r.id, 'start_time', v)}
+                        />
+                      </TableCell>
+                      <TableCell className="p-1 min-w-[100px]">
+                        <EditableCell
+                          type="time"
+                          value={r.end_time.slice(0, 5)}
+                          disabled={savingId === r.id}
+                          onBlur={(v: string) => handleUpdate(r.id, 'end_time', v)}
+                        />
+                      </TableCell>
+                      <TableCell className="p-1 min-w-[90px]">
+                        <EditableCell
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          value={r.break_time}
+                          disabled={savingId === r.id}
+                          onBlur={(v: string) =>
+                            handleUpdate(r.id, 'break_time', parseFloat(v) || 0)
+                          }
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium min-w-[80px]">
+                        {savingId === r.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        ) : (
+                          `${r.wh.toFixed(2)}h`
+                        )}
+                      </TableCell>
+                      <TableCell className="p-1 min-w-[100px]">
+                        <EditableCell
+                          type="number"
+                          step="1"
+                          min="0"
+                          value={r.hourly_rate}
+                          disabled={savingId === r.id}
+                          onBlur={(v: string) =>
+                            handleUpdate(r.id, 'hourly_rate', parseFloat(v) || 0)
+                          }
+                        />
+                      </TableCell>
                       <TableCell>{r.client || '-'}</TableCell>
                       <TableCell>{r.location || '-'}</TableCell>
                       <TableCell>
@@ -163,8 +244,12 @@ export default function Timesheet() {
                           {r.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right font-medium text-green-600 dark:text-green-400">
-                        R$ {r.dt.toFixed(2)}
+                      <TableCell className="text-right font-medium text-green-600 dark:text-green-400 min-w-[100px]">
+                        {savingId === r.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin inline text-primary ml-2" />
+                        ) : (
+                          `R$ ${r.dt.toFixed(2)}`
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

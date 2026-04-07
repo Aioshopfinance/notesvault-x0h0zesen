@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Activity,
   ShieldCheck,
@@ -7,6 +7,7 @@ import {
   Loader2,
   AlertCircle,
   FilterX,
+  Copy,
 } from 'lucide-react'
 import {
   Table,
@@ -27,7 +28,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { supabase } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
+import { useToast } from '@/hooks/use-toast'
 
 const actionMap: Record<string, string> = {
   view: 'Visualizou',
@@ -38,6 +42,9 @@ const actionMap: Record<string, string> = {
 }
 
 export default function Audit() {
+  const { user } = useAuth()
+  const { toast } = useToast()
+
   const [logs, setLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -50,13 +57,17 @@ export default function Audit() {
   const [search, setSearch] = useState('')
   const itemsPerPage = 10
 
-  useEffect(() => {
-    const fetchLogs = async () => {
-      setLoading(true)
+  const [selectedLog, setSelectedLog] = useState<any>(null)
+
+  const fetchLogs = useCallback(
+    async (showLoader = true) => {
+      if (showLoader) setLoading(true)
       const from = (page - 1) * itemsPerPage
       let query: any = supabase
         .from('secret_access_logs')
-        .select(`id, action, timestamp, secrets!inner(name)`, { count: 'exact' })
+        .select(`id, action, timestamp, ip_address, user_agent, details, secrets!inner(name)`, {
+          count: 'exact',
+        })
         .order('timestamp', { ascending: false })
         .range(from, from + itemsPerPage - 1)
 
@@ -72,10 +83,34 @@ export default function Audit() {
         setTotalCount(count || 0)
         setError(null)
       }
-      setLoading(false)
-    }
+      if (showLoader) setLoading(false)
+    },
+    [page, action, startDate, endDate, search],
+  )
+
+  useEffect(() => {
     fetchLogs()
-  }, [page, action, startDate, endDate, search])
+  }, [fetchLogs])
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('public:secret_access_logs')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'secret_access_logs' },
+        (payload) => {
+          toast({
+            title: 'Novo log registrado',
+            description: 'Um novo registro de auditoria foi recebido em tempo real.',
+          })
+          fetchLogs(false)
+        },
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [fetchLogs, toast])
 
   const resetFilters = () => {
     setStartDate('')
@@ -186,7 +221,10 @@ export default function Audit() {
                   logs.map((log) => (
                     <TableRow
                       key={log.id}
-                      className={loading ? 'opacity-50 transition-opacity' : 'transition-opacity'}
+                      onClick={() => setSelectedLog(log)}
+                      className={`cursor-pointer hover:bg-muted/50 transition-colors ${
+                        loading ? 'opacity-50' : ''
+                      }`}
                     >
                       <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                         {new Date(log.timestamp).toLocaleString('pt-BR')}
@@ -235,6 +273,69 @@ export default function Audit() {
             </div>
           </div>
         </div>
+
+        <Dialog open={!!selectedLog} onOpenChange={(open) => !open && setSelectedLog(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Detalhes da Auditoria</DialogTitle>
+            </DialogHeader>
+            {selectedLog && (
+              <div className="space-y-4 text-sm mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-lg border">
+                  <div>
+                    <span className="font-semibold text-muted-foreground">Data/Hora:</span> <br />
+                    {new Date(selectedLog.timestamp).toLocaleString('pt-BR')}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-muted-foreground">Ação Realizada:</span>{' '}
+                    <br />
+                    {actionMap[selectedLog.action] || selectedLog.action}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-muted-foreground">Usuário (Email):</span>{' '}
+                    <br />
+                    {user?.email || 'Desconhecido'}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-muted-foreground">Secret Afetada:</span>{' '}
+                    <br />
+                    {selectedLog.secrets?.name || 'Segredo removido'}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-muted-foreground">Endereço IP:</span> <br />
+                    {selectedLog.ip_address || 'N/A'}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-muted-foreground">User Agent:</span> <br />
+                    {selectedLog.user_agent || 'N/A'}
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-2 mt-4">
+                    <span className="font-semibold">Detalhes (JSON):</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(JSON.stringify(selectedLog.details, null, 2))
+                        toast({
+                          title: 'Copiado!',
+                          description: 'Detalhes copiados para a área de transferência.',
+                        })
+                      }}
+                      className="flex gap-2"
+                    >
+                      <Copy className="w-4 h-4" /> Copiar Detalhes
+                    </Button>
+                  </div>
+                  <pre className="bg-zinc-950 text-green-400 p-4 rounded-md overflow-auto max-h-60 text-xs border border-zinc-800">
+                    {JSON.stringify(selectedLog.details, null, 2) || '{}'}
+                  </pre>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )
