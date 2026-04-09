@@ -1,21 +1,25 @@
 import { useState, useEffect, Dispatch, SetStateAction } from 'react'
-import { Note, Folder } from '@/lib/types'
+import { Note, Folder, Tag } from '@/lib/types'
 import { supabase } from '@/lib/supabase/client'
 
 interface NotesState {
   folders: Folder[]
   notes: Note[]
+  tags: Tag[]
   selectedFolderId: string | null
   selectedNoteId: string | null
   isLoading: boolean
+  unlockedNotes: string[]
 }
 
 let globalState: NotesState = {
   folders: [],
   notes: [],
+  tags: [],
   selectedFolderId: null,
   selectedNoteId: null,
   isLoading: true,
+  unlockedNotes: [],
 }
 
 const listeners = new Set<Dispatch<SetStateAction<NotesState>>>()
@@ -34,7 +38,7 @@ export default function useNotesStore() {
       globalState = { ...globalState, isLoading: true }
       notify()
 
-      const [foldersRes, notesRes] = await Promise.all([
+      const [foldersRes, notesRes, tagsRes, noteTagsRes] = await Promise.all([
         supabase
           .from('folders')
           .select('*')
@@ -45,6 +49,8 @@ export default function useNotesStore() {
           .select('*')
           .eq('user_id', userId)
           .order('updated_at', { ascending: false }),
+        supabase.from('tags').select('*').eq('user_id', userId),
+        supabase.from('note_tags').select('*'),
       ])
 
       const folders: Folder[] = (foldersRes.data || []).map((f) => ({
@@ -53,19 +59,34 @@ export default function useNotesStore() {
         parentId: f.parent_folder_id,
       }))
 
-      const notes: Note[] = (notesRes.data || []).map((n) => ({
-        id: n.id,
-        title: n.title,
-        content: n.content,
-        folderId: n.folder_id,
-        isPinned: n.is_pinned,
-        updatedAt: n.updated_at,
+      const tags: Tag[] = (tagsRes.data || []).map((t) => ({
+        id: t.id,
+        name: t.name,
+        color: t.color,
       }))
+
+      const noteTags = noteTagsRes.data || []
+
+      const notes: Note[] = (notesRes.data || []).map((n) => {
+        const nTags = noteTags.filter((nt) => nt.note_id === n.id).map((nt) => nt.tag_id)
+        return {
+          id: n.id,
+          title: n.title,
+          content: n.content,
+          folderId: n.folder_id,
+          isPinned: n.is_pinned,
+          isLocked: n.is_locked || false,
+          lockPassword: n.lock_password,
+          updatedAt: n.updated_at,
+          tags: tags.filter((t) => nTags.includes(t.id)),
+        }
+      })
 
       globalState = {
         ...globalState,
         folders,
         notes,
+        tags,
         isLoading: false,
         selectedFolderId:
           folders.length > 0 && !globalState.selectedFolderId
@@ -79,9 +100,11 @@ export default function useNotesStore() {
       globalState = {
         folders: [],
         notes: [],
+        tags: [],
         selectedFolderId: null,
         selectedNoteId: null,
         isLoading: false,
+        unlockedNotes: [],
       }
       notify()
     },
@@ -96,13 +119,83 @@ export default function useNotesStore() {
       notify()
     },
 
-    addNote: async (note: Omit<Note, 'id' | 'updatedAt'>) => {
+    setUnlockedNote: (id: string) => {
+      if (!globalState.unlockedNotes.includes(id)) {
+        globalState = { ...globalState, unlockedNotes: [...globalState.unlockedNotes, id] }
+        notify()
+      }
+    },
+
+    lockNote: async (id: string, password: string | null) => {
+      const isLocked = password !== null
+      globalState = {
+        ...globalState,
+        notes: globalState.notes.map((n) =>
+          n.id === id ? { ...n, isLocked, lockPassword: password } : n,
+        ),
+      }
+      notify()
+      await supabase
+        .from('notes')
+        .update({ is_locked: isLocked, lock_password: password })
+        .eq('id', id)
+    },
+
+    createTag: async (name: string, color: string) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return null
+
+      const { data } = await supabase
+        .from('tags')
+        .insert({ user_id: user.id, name, color })
+        .select()
+        .single()
+
+      if (data) {
+        const newTag: Tag = { id: data.id, name: data.name, color: data.color }
+        globalState = { ...globalState, tags: [...globalState.tags, newTag] }
+        notify()
+        return newTag
+      }
+      return null
+    },
+
+    addTagToNote: async (noteId: string, tagId: string) => {
+      const note = globalState.notes.find((n) => n.id === noteId)
+      const tag = globalState.tags.find((t) => t.id === tagId)
+      if (note && tag && !note.tags?.some((t) => t.id === tagId)) {
+        const updatedTags = [...(note.tags || []), tag]
+        globalState = {
+          ...globalState,
+          notes: globalState.notes.map((n) => (n.id === noteId ? { ...n, tags: updatedTags } : n)),
+        }
+        notify()
+        await supabase.from('note_tags').insert({ note_id: noteId, tag_id: tagId })
+      }
+    },
+
+    removeTagFromNote: async (noteId: string, tagId: string) => {
+      const note = globalState.notes.find((n) => n.id === noteId)
+      if (note) {
+        const updatedTags = (note.tags || []).filter((t) => t.id !== tagId)
+        globalState = {
+          ...globalState,
+          notes: globalState.notes.map((n) => (n.id === noteId ? { ...n, tags: updatedTags } : n)),
+        }
+        notify()
+        await supabase.from('note_tags').delete().match({ note_id: noteId, tag_id: tagId })
+      }
+    },
+
+    addNote: async (note: Omit<Note, 'id' | 'updatedAt' | 'isLocked' | 'tags'>) => {
       const {
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('notes')
         .insert({
           user_id: user.id,
@@ -110,6 +203,7 @@ export default function useNotesStore() {
           title: note.title,
           content: note.content,
           is_pinned: note.isPinned,
+          is_locked: false,
         })
         .select()
         .single()
@@ -121,7 +215,9 @@ export default function useNotesStore() {
           content: data.content,
           folderId: data.folder_id,
           isPinned: data.is_pinned,
+          isLocked: data.is_locked,
           updatedAt: data.updated_at,
+          tags: [],
         }
         globalState = {
           ...globalState,
@@ -140,7 +236,6 @@ export default function useNotesStore() {
       if (updates.isPinned !== undefined) dbUpdates.is_pinned = updates.isPinned
       dbUpdates.updated_at = new Date().toISOString()
 
-      // Optimistic update
       globalState = {
         ...globalState,
         notes: globalState.notes.map((n) =>
@@ -148,7 +243,6 @@ export default function useNotesStore() {
         ),
       }
       notify()
-
       await supabase.from('notes').update(dbUpdates).eq('id', id)
     },
 
@@ -158,7 +252,7 @@ export default function useNotesStore() {
       } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('folders')
         .insert({
           user_id: user.id,
@@ -175,7 +269,6 @@ export default function useNotesStore() {
           parentId: data.parent_folder_id,
         }
         globalState = { ...globalState, folders: [...globalState.folders, newFolder] }
-
         if (!globalState.selectedFolderId) {
           globalState.selectedFolderId = newFolder.id
         }
@@ -187,14 +280,11 @@ export default function useNotesStore() {
       const note = globalState.notes.find((n) => n.id === id)
       if (note) {
         const newIsPinned = !note.isPinned
-
-        // Optimistic update
         globalState = {
           ...globalState,
           notes: globalState.notes.map((n) => (n.id === id ? { ...n, isPinned: newIsPinned } : n)),
         }
         notify()
-
         await supabase
           .from('notes')
           .update({
@@ -208,10 +298,8 @@ export default function useNotesStore() {
 
   useEffect(() => {
     listeners.add(setState)
-
     if (!initialized) {
       initialized = true
-
       const fetchInitialData = async () => {
         const {
           data: { session },
@@ -222,9 +310,7 @@ export default function useNotesStore() {
           api.clearData()
         }
       }
-
       fetchInitialData()
-
       supabase.auth.onAuthStateChange((event, session) => {
         if (session?.user) {
           api.fetchData(session.user.id)
@@ -233,14 +319,10 @@ export default function useNotesStore() {
         }
       })
     }
-
     return () => {
       listeners.delete(setState)
     }
   }, [])
 
-  return {
-    ...state,
-    ...api,
-  }
+  return { ...state, ...api }
 }

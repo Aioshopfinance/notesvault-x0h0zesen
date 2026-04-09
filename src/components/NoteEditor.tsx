@@ -1,20 +1,46 @@
 import { useState, useEffect } from 'react'
-import { Bold, Italic, List, ListOrdered, Link2, Pin, X, Save } from 'lucide-react'
+import { Bold, Italic, List, ListOrdered, Link2, Pin, X, Save, Lock, Unlock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import useNotesStore from '@/stores/useNotesStore'
 import { useToast } from '@/hooks/use-toast'
+import { NoteTagsPopover } from './NoteTagsPopover'
+import { NoteUnlockDialog } from './NoteUnlockDialog'
 
 export function NoteEditor() {
-  const { notes, selectedNoteId, setSelectedNoteId, updateNote, togglePin } = useNotesStore()
+  const {
+    notes,
+    selectedNoteId,
+    setSelectedNoteId,
+    updateNote,
+    togglePin,
+    tags,
+    createTag,
+    addTagToNote,
+    removeTagFromNote,
+    unlockedNotes,
+    setUnlockedNote,
+    lockNote,
+  } = useNotesStore()
   const { toast } = useToast()
 
   const activeNote = notes.find((n) => n.id === selectedNoteId)
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
+  const [isLockSettingsOpen, setIsLockSettingsOpen] = useState(false)
+  const [lockPasswordInput, setLockPasswordInput] = useState('')
 
   useEffect(() => {
     if (activeNote) {
@@ -44,6 +70,24 @@ export function NoteEditor() {
     setContent((prev) => prev + syntax)
   }
 
+  const handleLockSettingsSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (activeNote?.isLocked) {
+      lockNote(activeNote.id, null)
+      toast({ title: 'Bloqueio removido' })
+    } else {
+      if (lockPasswordInput.length < 3) {
+        toast({ title: 'A senha deve ter pelo menos 3 caracteres', variant: 'destructive' })
+        return
+      }
+      lockNote(activeNote!.id, lockPasswordInput)
+      setUnlockedNote(activeNote!.id)
+      toast({ title: 'Nota bloqueada com senha' })
+    }
+    setIsLockSettingsOpen(false)
+    setLockPasswordInput('')
+  }
+
   if (!activeNote) {
     return (
       <div className="hidden lg:flex flex-1 items-center justify-center bg-background text-muted-foreground">
@@ -57,9 +101,40 @@ export function NoteEditor() {
     )
   }
 
+  const isLockedAndRequiresPassword = activeNote.isLocked && !unlockedNotes.includes(activeNote.id)
+
+  if (isLockedAndRequiresPassword) {
+    return (
+      <>
+        {/* Mobile Backdrop */}
+        <div
+          className="fixed inset-0 bg-black/80 z-40 lg:hidden"
+          onClick={() => setSelectedNoteId(null)}
+        />
+        <div
+          className={cn(
+            'bg-background flex flex-col items-center justify-center',
+            selectedNoteId ? 'fixed inset-4 sm:inset-10 z-50 rounded-lg shadow-xl' : 'hidden',
+            'lg:static lg:flex lg:flex-1 lg:h-full lg:inset-auto lg:z-auto lg:rounded-none lg:shadow-none lg:w-auto w-full',
+          )}
+        >
+          <Lock className="w-16 h-16 text-muted-foreground/30 mb-4" />
+        </div>
+        <NoteUnlockDialog
+          isOpen={true}
+          onCancel={() => setSelectedNoteId(null)}
+          correctPassword={activeNote.lockPassword}
+          onUnlock={() => {
+            setUnlockedNote(activeNote.id)
+            toast({ title: 'Nota desbloqueada' })
+          }}
+        />
+      </>
+    )
+  }
+
   return (
     <>
-      {/* Mobile Backdrop */}
       {selectedNoteId && (
         <div
           className="fixed inset-0 bg-black/80 z-40 lg:hidden animate-fade-in"
@@ -67,7 +142,6 @@ export function NoteEditor() {
         />
       )}
 
-      {/* Editor Modal / Panel */}
       <div
         className={cn(
           'bg-background animate-fade-in flex flex-col',
@@ -77,7 +151,6 @@ export function NoteEditor() {
           'lg:static lg:flex lg:flex-1 lg:h-full lg:inset-auto lg:z-auto lg:rounded-none lg:shadow-none lg:w-auto w-full',
         )}
       >
-        {/* Mobile Header */}
         <div className="lg:hidden flex items-center justify-between p-2 border-b bg-muted/10">
           <span className="font-semibold px-2 truncate">{title || 'Nova Nota'}</span>
           <Button variant="ghost" size="icon" onClick={() => setSelectedNoteId(null)}>
@@ -156,7 +229,36 @@ export function NoteEditor() {
             </Tooltip>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
+            <NoteTagsPopover
+              tags={tags}
+              noteTags={activeNote.tags || []}
+              onAddTag={(tagId) => addTagToNote(activeNote.id, tagId)}
+              onRemoveTag={(tagId) => removeTagFromNote(activeNote.id, tagId)}
+              onCreateTag={(name, color) => createTag(name, color)}
+            />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    'w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8',
+                    activeNote.isLocked && 'text-primary',
+                  )}
+                  onClick={() => setIsLockSettingsOpen(true)}
+                >
+                  {activeNote.isLocked ? (
+                    <Lock className="w-4 h-4" />
+                  ) : (
+                    <Unlock className="w-4 h-4" />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {activeNote.isLocked ? 'Remover Bloqueio' : 'Proteger Nota'}
+              </TooltipContent>
+            </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -173,7 +275,7 @@ export function NoteEditor() {
               </TooltipTrigger>
               <TooltipContent>{activeNote.isPinned ? 'Desfixar' : 'Fixar'}</TooltipContent>
             </Tooltip>
-            <Button size="sm" onClick={handleSave} className="gap-2 h-8 min-h-8 md:min-h-8">
+            <Button size="sm" onClick={handleSave} className="gap-2 h-8 min-h-8 md:min-h-8 ml-1">
               <Save className="w-4 h-4" />
               <span className="hidden sm:inline">Salvar</span>
             </Button>
@@ -182,6 +284,19 @@ export function NoteEditor() {
 
         {/* Editor Area */}
         <div className="flex-1 flex flex-col p-4 md:p-10 max-w-4xl mx-auto w-full overflow-hidden">
+          {activeNote.tags && activeNote.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {activeNote.tags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className="text-[11px] font-medium px-2 py-0.5 rounded-full text-white shadow-sm"
+                  style={{ backgroundColor: tag.color }}
+                >
+                  {tag.name}
+                </span>
+              ))}
+            </div>
+          )}
           <input
             type="text"
             placeholder="Título da Nota"
@@ -197,6 +312,46 @@ export function NoteEditor() {
           />
         </div>
       </div>
+
+      <Dialog open={isLockSettingsOpen} onOpenChange={setIsLockSettingsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{activeNote.isLocked ? 'Remover Bloqueio' : 'Bloquear Nota'}</DialogTitle>
+            <DialogDescription>
+              {activeNote.isLocked
+                ? 'Tem certeza que deseja remover a proteção por senha desta nota?'
+                : 'Defina uma senha para proteger esta nota contra acessos não autorizados.'}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleLockSettingsSubmit} className="space-y-4">
+            {!activeNote.isLocked && (
+              <Input
+                type="password"
+                placeholder="Crie uma senha forte"
+                value={lockPasswordInput}
+                onChange={(e) => setLockPasswordInput(e.target.value)}
+                autoFocus
+              />
+            )}
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setIsLockSettingsOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" variant={activeNote.isLocked ? 'destructive' : 'default'}>
+                {activeNote.isLocked ? (
+                  <>
+                    <Unlock className="w-4 h-4 mr-2" /> Remover Proteção
+                  </>
+                ) : (
+                  <>
+                    <Lock className="w-4 h-4 mr-2" /> Ativar Proteção
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
