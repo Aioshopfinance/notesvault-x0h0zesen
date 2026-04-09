@@ -11,6 +11,13 @@ import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 import { useToast } from '@/hooks/use-toast'
 
+export interface TimeRecordStatus {
+  id: string
+  user_id: string
+  name: string
+  color: string
+}
+
 export interface TimesheetRow {
   id: string
   user_id: string
@@ -21,18 +28,40 @@ export interface TimesheetRow {
   hourly_rate: number
   client: string | null
   location: string | null
+  status_id: string
   status: string
+  status_obj?: TimeRecordStatus
   wh: number
   dt: number
 }
 
+const DEFAULT_COLUMNS = [
+  'date',
+  'start_time',
+  'end_time',
+  'break_time',
+  'wh',
+  'hourly_rate',
+  'client',
+  'location',
+  'status',
+  'dt',
+]
+
 interface TimesheetContextData {
   rows: TimesheetRow[]
+  statuses: TimeRecordStatus[]
+  visibleColumns: string[]
   loading: boolean
   addRecord: (payload: any) => Promise<boolean>
   updateRecord: (id: string, field: string, value: any) => Promise<boolean>
   updateBulkRecords: (ids: string[], field: string, value: any) => Promise<boolean>
   markAsPaid: (client: string) => Promise<boolean>
+  addStatus: (name: string, color: string) => Promise<boolean>
+  updateStatus: (id: string, name: string, color: string) => Promise<boolean>
+  deleteStatus: (id: string) => Promise<boolean>
+  toggleColumn: (colId: string) => void
+  resetColumns: () => void
 }
 
 const Context = createContext<TimesheetContextData | null>(null)
@@ -41,7 +70,35 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth()
   const { toast } = useToast()
   const [data, setData] = useState<any[]>([])
+  const [statuses, setStatuses] = useState<TimeRecordStatus[]>([])
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_COLUMNS)
   const [loading, setLoading] = useState(true)
+
+  const fetchStatuses = useCallback(async () => {
+    if (!user) return
+    const { data: st } = await supabase
+      .from('time_record_statuses')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at')
+    if (st) setStatuses(st)
+  }, [user])
+
+  const fetchPreferences = useCallback(async () => {
+    if (!user) return
+    const { data: pref } = await supabase
+      .from('user_preferences')
+      .select('timesheet_columns')
+      .eq('id', user.id)
+      .single()
+    if (
+      pref?.timesheet_columns &&
+      Array.isArray(pref.timesheet_columns) &&
+      pref.timesheet_columns.length > 0
+    ) {
+      setVisibleColumns(pref.timesheet_columns)
+    }
+  }, [user])
 
   const fetchRecords = useCallback(
     async (showLoading = true) => {
@@ -65,7 +122,10 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
   )
 
   useEffect(() => {
+    fetchStatuses()
+    fetchPreferences()
     fetchRecords()
+
     if (!user) return
     const sub = supabase
       .channel('timesheets-changes')
@@ -80,7 +140,7 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       supabase.removeChannel(sub)
     }
-  }, [user, fetchRecords])
+  }, [user, fetchRecords, fetchStatuses, fetchPreferences])
 
   const rows = useMemo(() => {
     return data.map((r) => {
@@ -92,9 +152,87 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
       if (diff < 0) diff += 24
       const wh = Math.max(0, diff - Number(r.break_time || 0))
       const dt = wh * Number(r.hourly_rate || 0)
-      return { ...r, wh, dt }
+      const status_obj = statuses.find((s) => s.id === r.status_id)
+
+      return {
+        ...r,
+        wh,
+        dt,
+        status_obj,
+        status: status_obj?.name || 'Desconhecido',
+      }
     })
-  }, [data])
+  }, [data, statuses])
+
+  const toggleColumn = async (colId: string) => {
+    const newCols = visibleColumns.includes(colId)
+      ? visibleColumns.filter((c) => c !== colId)
+      : [...visibleColumns, colId]
+    setVisibleColumns(newCols)
+    if (user) {
+      await supabase
+        .from('user_preferences')
+        .update({ timesheet_columns: newCols })
+        .eq('id', user.id)
+    }
+  }
+
+  const resetColumns = async () => {
+    setVisibleColumns(DEFAULT_COLUMNS)
+    if (user) {
+      await supabase
+        .from('user_preferences')
+        .update({ timesheet_columns: DEFAULT_COLUMNS })
+        .eq('id', user.id)
+    }
+  }
+
+  const addStatus = async (name: string, color: string) => {
+    if (!user) return false
+    const { error } = await supabase
+      .from('time_record_statuses')
+      .insert({ user_id: user.id, name, color })
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+      return false
+    }
+    toast({ title: 'Status criado!' })
+    fetchStatuses()
+    return true
+  }
+
+  const updateStatus = async (id: string, name: string, color: string) => {
+    const { error } = await supabase
+      .from('time_record_statuses')
+      .update({ name, color })
+      .eq('id', id)
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+      return false
+    }
+    fetchStatuses()
+    return true
+  }
+
+  const deleteStatus = async (id: string) => {
+    const inUse = rows.some((r) => r.status_id === id)
+    if (inUse) {
+      toast({
+        title: 'Ação Bloqueada',
+        description: 'Este status está em uso em um ou mais registros.',
+        variant: 'destructive',
+      })
+      return false
+    }
+    const { error } = await supabase.from('time_record_statuses').delete().eq('id', id)
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' })
+      return false
+    }
+    toast({ title: 'Status removido' })
+    fetchStatuses()
+    return true
+  }
 
   const addRecord = async (payload: any) => {
     if (!user) return false
@@ -124,9 +262,22 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
 
   const updateBulkRecords = async (ids: string[], field: string, value: any) => {
     if (!user) return false
+    let actualField = field
+    let actualValue = value
+
+    if (field === 'status') {
+      const statusObj = statuses.find((s) => s.name === value)
+      if (statusObj) {
+        actualField = 'status_id'
+        actualValue = statusObj.id
+      } else {
+        return false
+      }
+    }
+
     const { error } = await supabase
       .from('timesheets')
-      .update({ [field]: value })
+      .update({ [actualField]: actualValue })
       .in('id', ids)
 
     if (error) {
@@ -146,12 +297,16 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
 
   const markAsPaid = async (client: string) => {
     if (!user) return false
+    const pagoStatus = statuses.find((s) => s.name.toLowerCase() === 'pago')
+    const pendenteStatus = statuses.find((s) => s.name.toLowerCase() === 'pendente')
+    if (!pagoStatus || !pendenteStatus) return false
+
     const { error } = await supabase
       .from('timesheets')
-      .update({ status: 'Pago' })
+      .update({ status_id: pagoStatus.id })
       .eq('user_id', user.id)
       .eq('client', client)
-      .eq('status', 'Pendente')
+      .eq('status_id', pendenteStatus.id)
 
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' })
@@ -164,7 +319,21 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
 
   return (
     <Context.Provider
-      value={{ rows, loading, addRecord, updateRecord, updateBulkRecords, markAsPaid }}
+      value={{
+        rows,
+        statuses,
+        visibleColumns,
+        loading,
+        addRecord,
+        updateRecord,
+        updateBulkRecords,
+        markAsPaid,
+        addStatus,
+        updateStatus,
+        deleteStatus,
+        toggleColumn,
+        resetColumns,
+      }}
     >
       {children}
     </Context.Provider>
