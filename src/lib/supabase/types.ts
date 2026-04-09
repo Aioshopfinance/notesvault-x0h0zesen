@@ -1,11 +1,17 @@
 // AVOID UPDATING THIS FILE DIRECTLY. It is automatically generated.
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: '14.5'
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -39,11 +45,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'attachments_note_id_fkey'
-            columns: ['note_id']
+            foreignKeyName: "attachments_note_id_fkey"
+            columns: ["note_id"]
             isOneToOne: false
-            referencedRelation: 'notes'
-            referencedColumns: ['id']
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -74,11 +80,41 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'folders_parent_folder_id_fkey'
-            columns: ['parent_folder_id']
+            foreignKeyName: "folders_parent_folder_id_fkey"
+            columns: ["parent_folder_id"]
             isOneToOne: false
-            referencedRelation: 'folders'
-            referencedColumns: ['id']
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      note_tags: {
+        Row: {
+          note_id: string
+          tag_id: string
+        }
+        Insert: {
+          note_id: string
+          tag_id: string
+        }
+        Update: {
+          note_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "note_tags_note_id_fkey"
+            columns: ["note_id"]
+            isOneToOne: false
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "note_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -88,7 +124,9 @@ export type Database = {
           created_at: string
           folder_id: string
           id: string
+          is_locked: boolean
           is_pinned: boolean
+          lock_password: string | null
           pinned_at: string | null
           title: string
           updated_at: string
@@ -99,7 +137,9 @@ export type Database = {
           created_at?: string
           folder_id: string
           id?: string
+          is_locked?: boolean
           is_pinned?: boolean
+          lock_password?: string | null
           pinned_at?: string | null
           title?: string
           updated_at?: string
@@ -110,7 +150,9 @@ export type Database = {
           created_at?: string
           folder_id?: string
           id?: string
+          is_locked?: boolean
           is_pinned?: boolean
+          lock_password?: string | null
           pinned_at?: string | null
           title?: string
           updated_at?: string
@@ -118,11 +160,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'notes_folder_id_fkey'
-            columns: ['folder_id']
+            foreignKeyName: "notes_folder_id_fkey"
+            columns: ["folder_id"]
             isOneToOne: false
-            referencedRelation: 'folders'
-            referencedColumns: ['id']
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -159,11 +201,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'secret_access_logs_secret_id_fkey'
-            columns: ['secret_id']
+            foreignKeyName: "secret_access_logs_secret_id_fkey"
+            columns: ["secret_id"]
             isOneToOne: false
-            referencedRelation: 'secrets'
-            referencedColumns: ['id']
+            referencedRelation: "secrets"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -194,6 +236,30 @@ export type Database = {
           updated_at?: string
           user_id?: string
           value?: string
+        }
+        Relationships: []
+      }
+      tags: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -285,31 +351,33 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, 'public'>]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
-    ? (DefaultSchema['Tables'] & DefaultSchema['Views'])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -318,23 +386,23 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema['Tables']
+    | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
-    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -343,23 +411,23 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema['Tables']
+    | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
-    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -368,36 +436,36 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema['Enums']
+    | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
-    ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema['CompositeTypes']
+    | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
-    ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
 export const Constants = {
@@ -405,6 +473,7 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
 
 // ====== DATABASE EXTENDED CONTEXT (auto-generated) ======
 // This section contains actual PostgreSQL column types, constraints, RLS policies,
@@ -431,6 +500,9 @@ export const Constants = {
 //   parent_folder_id: uuid (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+// Table: note_tags
+//   note_id: uuid (not null)
+//   tag_id: uuid (not null)
 // Table: notes
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)
@@ -441,6 +513,8 @@ export const Constants = {
 //   pinned_at: timestamp with time zone (nullable)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+//   is_locked: boolean (not null, default: false)
+//   lock_password: text (nullable)
 // Table: secret_access_logs
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)
@@ -458,6 +532,12 @@ export const Constants = {
 //   category: text (not null, default: 'Outro'::text)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+// Table: tags
+//   id: uuid (not null, default: gen_random_uuid())
+//   user_id: uuid (not null)
+//   name: text (not null)
+//   color: text (not null, default: '#808080'::text)
+//   created_at: timestamp with time zone (not null, default: now())
 // Table: timesheets
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)
@@ -487,6 +567,10 @@ export const Constants = {
 //   FOREIGN KEY folders_parent_folder_id_fkey: FOREIGN KEY (parent_folder_id) REFERENCES folders(id) ON DELETE CASCADE
 //   PRIMARY KEY folders_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY folders_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: note_tags
+//   FOREIGN KEY note_tags_note_id_fkey: FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
+//   PRIMARY KEY note_tags_pkey: PRIMARY KEY (note_id, tag_id)
+//   FOREIGN KEY note_tags_tag_id_fkey: FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
 // Table: notes
 //   FOREIGN KEY notes_folder_id_fkey: FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE
 //   PRIMARY KEY notes_pkey: PRIMARY KEY (id)
@@ -498,6 +582,9 @@ export const Constants = {
 // Table: secrets
 //   PRIMARY KEY secrets_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY secrets_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+// Table: tags
+//   PRIMARY KEY tags_pkey: PRIMARY KEY (id)
+//   FOREIGN KEY tags_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: timesheets
 //   PRIMARY KEY timesheets_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY timesheets_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
@@ -514,6 +601,10 @@ export const Constants = {
 //   Policy "Users can manage their own folders" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
+// Table: note_tags
+//   Policy "Users can manage note tags" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (note_id IN ( SELECT notes.id    FROM notes   WHERE (notes.user_id = auth.uid())))
+//     WITH CHECK: (note_id IN ( SELECT notes.id    FROM notes   WHERE (notes.user_id = auth.uid())))
 // Table: notes
 //   Policy "Users can manage their own notes" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
@@ -525,6 +616,10 @@ export const Constants = {
 //     USING: (auth.uid() = user_id)
 // Table: secrets
 //   Policy "Users can manage their own secrets" (ALL, PERMISSIVE) roles={authenticated}
+//     USING: (auth.uid() = user_id)
+//     WITH CHECK: (auth.uid() = user_id)
+// Table: tags
+//   Policy "Users can manage their own tags" (ALL, PERMISSIVE) roles={authenticated}
 //     USING: (auth.uid() = user_id)
 //     WITH CHECK: (auth.uid() = user_id)
 // Table: timesheets
@@ -553,7 +648,7 @@ export const Constants = {
 //     RETURN NEW;
 //   END;
 //   $function$
-//
+//   
 // FUNCTION handle_new_user_preferences()
 //   CREATE OR REPLACE FUNCTION public.handle_new_user_preferences()
 //    RETURNS trigger
@@ -567,7 +662,7 @@ export const Constants = {
 //     RETURN NEW;
 //   END;
 //   $function$
-//
+//   
 // FUNCTION normalize_secret_log_action()
 //   CREATE OR REPLACE FUNCTION public.normalize_secret_log_action()
 //    RETURNS trigger
@@ -580,7 +675,7 @@ export const Constants = {
 //     RETURN NEW;
 //   END;
 //   $function$
-//
+//   
 
 // --- TRIGGERS ---
 // Table: secret_access_logs
@@ -594,3 +689,4 @@ export const Constants = {
 // Table: timesheets
 //   CREATE INDEX idx_timesheets_date ON public.timesheets USING btree (date)
 //   CREATE INDEX idx_timesheets_user_id ON public.timesheets USING btree (user_id)
+
