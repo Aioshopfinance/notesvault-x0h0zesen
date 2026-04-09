@@ -1,4 +1,4 @@
-import { Plus, Pin, Lock } from 'lucide-react'
+import { Plus, Pin, Lock, Unlock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
@@ -75,8 +75,15 @@ export function NotesList() {
                   {note.isPinned && <Pin className="w-3 h-3 text-primary shrink-0 mt-1" />}
                 </div>
                 <div className="text-xs text-muted-foreground line-clamp-2 opacity-80">
-                  {note.isLocked && !unlockedNotes.includes(note.id) ? (
-                    <Lock className="w-4 h-4 text-muted-foreground" />
+                  {note.isLocked ? (
+                    unlockedNotes.includes(note.id) ? (
+                      <div className="flex items-center gap-1.5">
+                        <Unlock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate">{note.content || 'Sem conteúdo'}</span>
+                      </div>
+                    ) : (
+                      <Lock className="w-4 h-4 text-muted-foreground" />
+                    )
                   ) : (
                     note.content || 'Sem conteúdo'
                   )}

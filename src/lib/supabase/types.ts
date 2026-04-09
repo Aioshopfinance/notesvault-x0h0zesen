@@ -304,28 +304,52 @@ export type Database = {
       }
       user_preferences: {
         Row: {
+          address: string | null
           avatar_url: string | null
+          city: string | null
+          country: string | null
           created_at: string
           full_name: string | null
           id: string
+          master_password: string | null
+          phone: string | null
+          secondary_email: string | null
+          state: string | null
           theme: string | null
           updated_at: string
+          zip_code: string | null
         }
         Insert: {
+          address?: string | null
           avatar_url?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           full_name?: string | null
           id: string
+          master_password?: string | null
+          phone?: string | null
+          secondary_email?: string | null
+          state?: string | null
           theme?: string | null
           updated_at?: string
+          zip_code?: string | null
         }
         Update: {
+          address?: string | null
           avatar_url?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
           full_name?: string | null
           id?: string
+          master_password?: string | null
+          phone?: string | null
+          secondary_email?: string | null
+          state?: string | null
           theme?: string | null
           updated_at?: string
+          zip_code?: string | null
         }
         Relationships: []
       }
@@ -549,6 +573,14 @@ export const Constants = {
 //   theme: text (nullable, default: 'system'::text)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+//   master_password: text (nullable)
+//   secondary_email: text (nullable)
+//   phone: text (nullable)
+//   address: text (nullable)
+//   country: text (nullable)
+//   state: text (nullable)
+//   city: text (nullable)
+//   zip_code: text (nullable)
 
 // --- CONSTRAINTS ---
 // Table: attachments

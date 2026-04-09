@@ -115,7 +115,11 @@ export default function useNotesStore() {
     },
 
     setSelectedNoteId: (id: string | null) => {
-      globalState = { ...globalState, selectedNoteId: id }
+      globalState = {
+        ...globalState,
+        selectedNoteId: id,
+        unlockedNotes: id && globalState.unlockedNotes.includes(id) ? [id] : [],
+      }
       notify()
     },
 
