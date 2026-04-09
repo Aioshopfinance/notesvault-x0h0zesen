@@ -9,9 +9,11 @@ import {
   Clock,
   Lock,
   Unlock,
+  Settings,
+  Trash2,
 } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Sidebar,
   SidebarContent,
@@ -37,6 +39,51 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import useNotesStore from '@/stores/useNotesStore'
 import { useToast } from '@/hooks/use-toast'
+import { ScrollArea } from '@/components/ui/scroll-area'
+
+function TagEditRow({ tag, onUpdate, onDelete }: { tag: any; onUpdate: any; onDelete: any }) {
+  const [name, setName] = useState(tag.name)
+  const [color, setColor] = useState(tag.color)
+
+  useEffect(() => {
+    setName(tag.name)
+    setColor(tag.color)
+  }, [tag.name, tag.color])
+
+  const handleSave = () => {
+    if (name !== tag.name || color !== tag.color) {
+      onUpdate(tag.id, name, color)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <Input
+        type="color"
+        value={color}
+        onChange={(e) => setColor(e.target.value)}
+        onBlur={handleSave}
+        className="w-12 h-9 p-1 shrink-0 cursor-pointer"
+      />
+      <Input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+        className="flex-1"
+        placeholder="Nome da tag"
+      />
+      <Button
+        variant="ghost"
+        size="icon"
+        className="shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+        onClick={() => onDelete(tag.id)}
+      >
+        <Trash2 className="w-4 h-4" />
+      </Button>
+    </div>
+  )
+}
 
 export function AppSidebar() {
   const location = useLocation()
@@ -46,16 +93,22 @@ export function AppSidebar() {
   const {
     folders,
     notes,
+    tags,
     selectedFolderId,
     setSelectedFolderId,
     addFolder,
     setSelectedNoteId,
     unlockedNotes,
     removeUnlockedNote,
+    updateTag,
+    deleteTag,
+    toggleTagFilter,
+    selectedTagIds,
   } = useNotesStore()
 
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
+  const [isManageTagsModalOpen, setIsManageTagsModalOpen] = useState(false)
 
   const pinnedNotes = notes.filter((n) => n.isPinned)
   const rootFolders = folders.filter((f) => !f.parentId)
@@ -214,6 +267,45 @@ export function AppSidebar() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
+
+          <SidebarGroup>
+            <div className="flex items-center justify-between pr-2">
+              <SidebarGroupLabel>Tags</SidebarGroupLabel>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-5 w-5"
+                onClick={() => setIsManageTagsModalOpen(true)}
+              >
+                <Settings className="h-3 w-3 text-muted-foreground hover:text-foreground transition-colors" />
+              </Button>
+            </div>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {tags.map((tag) => (
+                  <SidebarMenuItem key={tag.id}>
+                    <SidebarMenuButton
+                      isActive={selectedTagIds.includes(tag.id)}
+                      onClick={() => {
+                        navigate('/')
+                        toggleTagFilter(tag.id)
+                        setOpenMobile(false)
+                      }}
+                    >
+                      <div
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      <span className="truncate">{tag.name}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+                {tags.length === 0 && (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">Nenhuma tag criada</div>
+                )}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         </SidebarContent>
       </Sidebar>
 
@@ -236,6 +328,27 @@ export function AppSidebar() {
             </Button>
             <Button onClick={handleCreateFolder}>Criar</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isManageTagsModalOpen} onOpenChange={setIsManageTagsModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Tags</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh]">
+            <div className="space-y-4 py-4 pr-4">
+              {tags.length === 0 ? (
+                <div className="text-center text-sm text-muted-foreground">
+                  Você ainda não tem tags cadastradas.
+                </div>
+              ) : (
+                tags.map((tag) => (
+                  <TagEditRow key={tag.id} tag={tag} onUpdate={updateTag} onDelete={deleteTag} />
+                ))
+              )}
+            </div>
+          </ScrollArea>
         </DialogContent>
       </Dialog>
     </>

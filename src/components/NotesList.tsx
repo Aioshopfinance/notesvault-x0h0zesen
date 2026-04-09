@@ -1,5 +1,6 @@
-import { Plus, Pin, Lock, Unlock } from 'lucide-react'
+import { Plus, Pin, Lock, Unlock, Search, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import useNotesStore from '@/stores/useNotesStore'
@@ -7,16 +8,31 @@ import useNotesStore from '@/stores/useNotesStore'
 export function NotesList() {
   const {
     notes,
+    tags,
     selectedFolderId,
     selectedNoteId,
     setSelectedNoteId,
     addNote,
     isLoading,
     unlockedNotes,
+    searchQuery,
+    setSearchQuery,
+    selectedTagIds,
+    toggleTagFilter,
   } = useNotesStore()
 
   const filteredNotes = notes
     .filter((n) => n.folderId === selectedFolderId)
+    .filter((n) => {
+      if (!searchQuery.trim()) return true
+      const q = searchQuery.toLowerCase()
+      return n.title?.toLowerCase().includes(q) || n.content?.toLowerCase().includes(q)
+    })
+    .filter((n) => {
+      if (selectedTagIds.length === 0) return true
+      if (!n.tags) return false
+      return n.tags.some((tag) => selectedTagIds.includes(tag.id))
+    })
     .sort((a, b) => {
       if (a.isPinned === b.isPinned)
         return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
@@ -46,6 +62,43 @@ export function NotesList() {
           <Plus className="w-4 h-4 mr-1" /> Nova
         </Button>
       </div>
+
+      <div className="p-3 border-b space-y-3 bg-background/30 backdrop-blur-sm">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar notas..."
+            className="pl-9 h-9 bg-background"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+
+        {selectedTagIds.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {selectedTagIds.map((tagId) => {
+              const tag = tags.find((t) => t.id === tagId)
+              if (!tag) return null
+              return (
+                <button
+                  key={tag.id}
+                  onClick={() => toggleTagFilter(tag.id)}
+                  className="flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-medium transition-colors hover:opacity-80 border"
+                  style={{
+                    backgroundColor: `${tag.color}20`,
+                    borderColor: `${tag.color}40`,
+                    color: tag.color,
+                  }}
+                >
+                  {tag.name}
+                  <X className="w-3 h-3" />
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-1">
           {isLoading ? (
@@ -54,7 +107,7 @@ export function NotesList() {
             </div>
           ) : filteredNotes.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground text-sm">
-              Nenhuma nota nesta pasta.
+              Nenhuma nota encontrada.
             </div>
           ) : (
             filteredNotes.map((note) => (
@@ -88,6 +141,20 @@ export function NotesList() {
                     note.content || 'Sem conteúdo'
                   )}
                 </div>
+
+                {note.tags && note.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {note.tags.map((tag) => (
+                      <div
+                        key={tag.id}
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: tag.color }}
+                        title={tag.name}
+                      />
+                    ))}
+                  </div>
+                )}
+
                 <div className="text-[10px] text-muted-foreground/60 mt-2 font-medium">
                   {new Date(note.updatedAt).toLocaleDateString('pt-BR')}
                 </div>

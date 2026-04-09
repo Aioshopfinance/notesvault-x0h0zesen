@@ -10,6 +10,8 @@ interface NotesState {
   selectedNoteId: string | null
   isLoading: boolean
   unlockedNotes: string[]
+  searchQuery: string
+  selectedTagIds: string[]
 }
 
 let globalState: NotesState = {
@@ -20,6 +22,8 @@ let globalState: NotesState = {
   selectedNoteId: null,
   isLoading: true,
   unlockedNotes: [],
+  searchQuery: '',
+  selectedTagIds: [],
 }
 
 const listeners = new Set<Dispatch<SetStateAction<NotesState>>>()
@@ -105,8 +109,53 @@ export default function useNotesStore() {
         selectedNoteId: null,
         isLoading: false,
         unlockedNotes: [],
+        searchQuery: '',
+        selectedTagIds: [],
       }
       notify()
+    },
+
+    setSearchQuery: (query: string) => {
+      globalState = { ...globalState, searchQuery: query }
+      notify()
+    },
+
+    toggleTagFilter: (tagId: string) => {
+      const isSelected = globalState.selectedTagIds.includes(tagId)
+      globalState = {
+        ...globalState,
+        selectedTagIds: isSelected
+          ? globalState.selectedTagIds.filter((id) => id !== tagId)
+          : [...globalState.selectedTagIds, tagId],
+      }
+      notify()
+    },
+
+    updateTag: async (id: string, name: string, color: string) => {
+      globalState = {
+        ...globalState,
+        tags: globalState.tags.map((t) => (t.id === id ? { ...t, name, color } : t)),
+        notes: globalState.notes.map((n) => ({
+          ...n,
+          tags: n.tags?.map((t) => (t.id === id ? { ...t, name, color } : t)) || [],
+        })),
+      }
+      notify()
+      await supabase.from('tags').update({ name, color }).eq('id', id)
+    },
+
+    deleteTag: async (id: string) => {
+      globalState = {
+        ...globalState,
+        tags: globalState.tags.filter((t) => t.id !== id),
+        selectedTagIds: globalState.selectedTagIds.filter((tid) => tid !== id),
+        notes: globalState.notes.map((n) => ({
+          ...n,
+          tags: n.tags?.filter((t) => t.id !== id) || [],
+        })),
+      }
+      notify()
+      await supabase.from('tags').delete().eq('id', id)
     },
 
     setSelectedFolderId: (id: string | null) => {
