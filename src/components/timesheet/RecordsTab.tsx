@@ -55,6 +55,11 @@ const COLUMNS_DEF = [
 
 const EditableCell = ({ value, type, onBlur, disabled, min, step }: any) => {
   const [val, setVal] = useState(value)
+
+  useEffect(() => {
+    setVal(value)
+  }, [value])
+
   return (
     <Input
       type={type}
@@ -80,6 +85,9 @@ export default function RecordsTab() {
     toggleColumn,
     resetColumns,
     loading,
+    currency,
+    rate,
+    formatCurrency,
     addRecord,
     updateRecord,
   } = useTimesheetContext()
@@ -97,11 +105,17 @@ export default function RecordsTab() {
     start_time: '09:00',
     end_time: '18:00',
     break_time: 1,
-    hourly_rate: 17,
+    hourly_rate: 0,
     client: '',
     location: '',
     status_id: '',
   })
+
+  useEffect(() => {
+    if (form.hourly_rate === 0 && rate) {
+      setForm((f) => ({ ...f, hourly_rate: 17 * rate }))
+    }
+  }, [rate, form.hourly_rate])
 
   useEffect(() => {
     if (statuses.length > 0 && !form.status_id) {
@@ -136,7 +150,11 @@ export default function RecordsTab() {
   }
 
   const handleSave = async () => {
-    if (await addRecord(form)) setOpen(false)
+    const payload = {
+      ...form,
+      hourly_rate: form.hourly_rate / rate,
+    }
+    if (await addRecord(payload)) setOpen(false)
   }
 
   const clearFilters = () => {
@@ -370,12 +388,12 @@ export default function RecordsTab() {
                       <TableCell className="p-1 min-w-[100px]">
                         <EditableCell
                           type="number"
-                          step="1"
+                          step="0.01"
                           min="0"
-                          value={r.hourly_rate}
+                          value={(r.hourly_rate * rate).toFixed(2)}
                           disabled={savingId === r.id}
                           onBlur={(v: string) =>
-                            handleUpdate(r.id, 'hourly_rate', parseFloat(v) || 0)
+                            handleUpdate(r.id, 'hourly_rate', (parseFloat(v) || 0) / rate)
                           }
                         />
                       </TableCell>
@@ -436,7 +454,7 @@ export default function RecordsTab() {
                         {savingId === r.id ? (
                           <Loader2 className="w-4 h-4 animate-spin inline text-primary ml-2" />
                         ) : (
-                          `R$ ${r.dt.toFixed(2)}`
+                          formatCurrency(r.dt)
                         )}
                       </TableCell>
                     )}
@@ -460,7 +478,7 @@ export default function RecordsTab() {
                           key={colId}
                           className="text-right font-bold text-lg text-primary"
                         >
-                          R$ {filteredRows.reduce((a, b) => a + b.dt, 0).toFixed(2)}
+                          {formatCurrency(filteredRows.reduce((a, b) => a + b.dt, 0))}
                         </TableCell>
                       )
 
@@ -552,10 +570,11 @@ export default function RecordsTab() {
               />
             </div>
             <div className="space-y-2">
-              <Label>Valor/Hora</Label>
+              <Label>Valor/Hora ({currency})</Label>
               <Input
                 type="number"
                 min="0"
+                step="0.01"
                 value={form.hourly_rate}
                 onChange={(e) => setForm({ ...form, hourly_rate: parseFloat(e.target.value) || 0 })}
               />

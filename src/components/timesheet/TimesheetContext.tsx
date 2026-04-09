@@ -53,6 +53,9 @@ interface TimesheetContextData {
   statuses: TimeRecordStatus[]
   visibleColumns: string[]
   loading: boolean
+  currency: string
+  rate: number
+  formatCurrency: (valueInUSD: number) => string
   addRecord: (payload: any) => Promise<boolean>
   updateRecord: (id: string, field: string, value: any) => Promise<boolean>
   updateBulkRecords: (ids: string[], field: string, value: any) => Promise<boolean>
@@ -73,6 +76,25 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
   const [statuses, setStatuses] = useState<TimeRecordStatus[]>([])
   const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_COLUMNS)
   const [loading, setLoading] = useState(true)
+  const [currency, setCurrency] = useState('USD')
+
+  const rate = useMemo(() => {
+    if (currency === 'BRL') return 5.2
+    if (currency === 'EUR') return 0.92
+    return 1
+  }, [currency])
+
+  const formatCurrency = useCallback(
+    (valueInUSD: number) => {
+      const converted = valueInUSD * rate
+      const locales = currency === 'BRL' ? 'pt-BR' : currency === 'EUR' ? 'de-DE' : 'en-US'
+      return new Intl.NumberFormat(locales, {
+        style: 'currency',
+        currency: currency,
+      }).format(converted)
+    },
+    [currency, rate],
+  )
 
   const fetchStatuses = useCallback(async () => {
     if (!user) return
@@ -88,7 +110,7 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
     if (!user) return
     const { data: pref } = await supabase
       .from('user_preferences')
-      .select('timesheet_columns')
+      .select('timesheet_columns, currency')
       .eq('id', user.id)
       .single()
     if (
@@ -97,6 +119,9 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
       pref.timesheet_columns.length > 0
     ) {
       setVisibleColumns(pref.timesheet_columns)
+    }
+    if ((pref as any)?.currency) {
+      setCurrency((pref as any).currency)
     }
   }, [user])
 
@@ -324,6 +349,9 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
         statuses,
         visibleColumns,
         loading,
+        currency,
+        rate,
+        formatCurrency,
         addRecord,
         updateRecord,
         updateBulkRecords,

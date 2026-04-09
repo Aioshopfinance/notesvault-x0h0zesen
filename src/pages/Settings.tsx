@@ -7,6 +7,13 @@ import { Label } from '@/components/ui/label'
 import { useToast } from '@/hooks/use-toast'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Loader2, User, Shield, KeyRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -94,6 +101,7 @@ function ProfileForm({ user, profile, refreshProfile }: any) {
     state: '',
     city: '',
     zipCode: '',
+    currency: 'USD',
   })
 
   useEffect(() => {
@@ -115,6 +123,7 @@ function ProfileForm({ user, profile, refreshProfile }: any) {
             state: data.state || '',
             city: data.city || '',
             zipCode: data.zip_code || '',
+            currency: data.currency || 'USD',
           })
         }
       }
@@ -142,6 +151,7 @@ function ProfileForm({ user, profile, refreshProfile }: any) {
           state: formData.state,
           city: formData.city,
           zip_code: formData.zipCode,
+          currency: formData.currency,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id)
@@ -209,6 +219,22 @@ function ProfileForm({ user, profile, refreshProfile }: any) {
             <div className="space-y-2">
               <Label htmlFor="zipCode">CEP</Label>
               <Input id="zipCode" value={formData.zipCode} onChange={handleChange} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="currency">Moeda Padrão</Label>
+              <Select
+                value={formData.currency}
+                onValueChange={(v) => setFormData((prev) => ({ ...prev, currency: v }))}
+              >
+                <SelectTrigger id="currency">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="USD">USD (Dólares)</SelectItem>
+                  <SelectItem value="BRL">BRL (Reais)</SelectItem>
+                  <SelectItem value="EUR">EUR (Euros)</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="address">Endereço</Label>

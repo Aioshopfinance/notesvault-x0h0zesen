@@ -66,7 +66,7 @@ function EditableCell({ value, onSave }: { value: string; onSave: (val: string) 
 }
 
 export default function ReportTab() {
-  const { rows, markAsPaid, updateBulkRecords } = useTimesheetContext()
+  const { rows, markAsPaid, updateBulkRecords, formatCurrency } = useTimesheetContext()
   const [clientFilter, setClientFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
 
@@ -159,11 +159,11 @@ export default function ReportTab() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div className="bg-destructive/10 text-destructive p-4 rounded-xl border border-destructive/20">
           <div className="text-sm font-medium mb-1">Total Pendente</div>
-          <div className="text-2xl font-bold">R$ {totalPendente.toFixed(2)}</div>
+          <div className="text-2xl font-bold">{formatCurrency(totalPendente)}</div>
         </div>
         <div className="bg-green-500/10 text-green-600 dark:text-green-400 p-4 rounded-xl border border-green-500/20">
           <div className="text-sm font-medium mb-1">Total Pago</div>
-          <div className="text-2xl font-bold">R$ {totalPago.toFixed(2)}</div>
+          <div className="text-2xl font-bold">{formatCurrency(totalPago)}</div>
         </div>
       </div>
 
@@ -220,7 +220,9 @@ export default function ReportTab() {
                       </SelectContent>
                     </Select>
                   </TableCell>
-                  <TableCell className="text-right font-bold">R$ {row.value.toFixed(2)}</TableCell>
+                  <TableCell className="text-right font-bold">
+                    {formatCurrency(row.value)}
+                  </TableCell>
                   <TableCell className="text-center print:hidden">
                     {row.status === 'Pendente' && (
                       <Button
@@ -249,7 +251,7 @@ export default function ReportTab() {
                 </TableCell>
                 <TableCell></TableCell>
                 <TableCell className="text-right font-bold text-lg">
-                  R$ {reportData.reduce((a, b) => a + b.value, 0).toFixed(2)}
+                  {formatCurrency(reportData.reduce((a, b) => a + b.value, 0))}
                 </TableCell>
                 <TableCell className="print:hidden"></TableCell>
               </TableRow>

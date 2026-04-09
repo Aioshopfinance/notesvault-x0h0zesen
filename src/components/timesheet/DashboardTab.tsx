@@ -8,7 +8,7 @@ import { Clock, DollarSign } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 
 export default function DashboardTab() {
-  const { rows } = useTimesheetContext()
+  const { rows, formatCurrency } = useTimesheetContext()
   const [monthYear, setMonthYear] = useState(() => {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -72,7 +72,7 @@ export default function DashboardTab() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ {totalValue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totalValue)}</div>
           </CardContent>
         </Card>
       </div>
