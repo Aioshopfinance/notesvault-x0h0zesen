@@ -158,12 +158,12 @@ function ProfileForm({ user, profile, refreshProfile }: any) {
   const initials = (formData.fullName || user?.email || 'US').substring(0, 2).toUpperCase()
 
   return (
-    <Card>
+    <Card className="h-full flex flex-col max-h-[calc(100vh-8rem)]">
       <CardHeader>
         <CardTitle>Perfil da Conta</CardTitle>
         <CardDescription>Atualize suas informações pessoais e de contato.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="overflow-y-auto pb-20 flex-1">
         <div className="flex items-center gap-4 mb-8">
           <Avatar className="w-16 h-16 border">
             <AvatarImage src={formData.avatarUrl} alt={formData.fullName} />
@@ -242,21 +242,35 @@ function ProfileForm({ user, profile, refreshProfile }: any) {
 function SecurityForm({ user }: { user: any }) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!currentPassword) {
+      return toast({ title: 'A senha atual é obrigatória', variant: 'destructive' })
+    }
     if (password !== confirmPassword) {
-      return toast({ title: 'As senhas não coincidem', variant: 'destructive' })
+      return toast({ title: 'As novas senhas não coincidem', variant: 'destructive' })
     }
     if (password.length < 6) {
       return toast({ title: 'A senha deve ter pelo menos 6 caracteres', variant: 'destructive' })
     }
     setLoading(true)
     try {
+      if (user?.email) {
+        const { error: verifyError } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password: currentPassword,
+        })
+        if (verifyError) throw new Error('Senha atual incorreta')
+      }
+
       const { error } = await supabase.auth.updateUser({ password })
       if (error) throw error
+
+      setCurrentPassword('')
       setPassword('')
       setConfirmPassword('')
       toast({ title: 'Senha atualizada com sucesso!' })
@@ -279,6 +293,16 @@ function SecurityForm({ user }: { user: any }) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSave} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="currentPassword">Senha Atual</Label>
+            <Input
+              id="currentPassword"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="password">Nova Senha</Label>
             <Input
