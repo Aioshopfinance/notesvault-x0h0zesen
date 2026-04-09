@@ -22,6 +22,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubItem,
   SidebarMenuSubButton,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import {
   Dialog,
@@ -39,6 +40,7 @@ export function AppSidebar() {
   const location = useLocation()
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { setOpenMobile } = useSidebar()
   const { folders, notes, selectedFolderId, setSelectedFolderId, addFolder, setSelectedNoteId } =
     useNotesStore()
 
@@ -59,10 +61,15 @@ export function AppSidebar() {
     toast({ title: 'Pasta criada com sucesso!' })
   }
 
+  const handleLinkClick = () => {
+    setOpenMobile(false)
+  }
+
   const handleNoteClick = (id: string, folderId: string) => {
     navigate('/')
     setSelectedFolderId(folderId)
     setSelectedNoteId(id)
+    setOpenMobile(false)
   }
 
   return (
@@ -75,35 +82,35 @@ export function AppSidebar() {
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location.pathname === '/'}>
-                    <Link to="/">
+                    <Link to="/" onClick={handleLinkClick}>
                       <FileText /> Editor de Notas
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location.pathname === '/scanner'}>
-                    <Link to="/scanner">
+                    <Link to="/scanner" onClick={handleLinkClick}>
                       <ScanLine /> Scanner OCR
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location.pathname === '/secrets'}>
-                    <Link to="/secrets">
+                    <Link to="/secrets" onClick={handleLinkClick}>
                       <KeyRound /> Secrets Manager
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location.pathname === '/audit'}>
-                    <Link to="/audit">
+                    <Link to="/audit" onClick={handleLinkClick}>
                       <Activity /> Log de Auditoria
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location.pathname === '/timesheet'}>
-                    <Link to="/timesheet">
+                    <Link to="/timesheet" onClick={handleLinkClick}>
                       <Clock /> Banco de Horas
                     </Link>
                   </SidebarMenuButton>
@@ -151,6 +158,7 @@ export function AppSidebar() {
                       onClick={() => {
                         navigate('/')
                         setSelectedFolderId(root.id)
+                        setOpenMobile(false)
                       }}
                     >
                       <ChevronRight className="w-4 h-4" />
@@ -166,6 +174,7 @@ export function AppSidebar() {
                               onClick={() => {
                                 navigate('/')
                                 setSelectedFolderId(child.id)
+                                setOpenMobile(false)
                               }}
                             >
                               {child.name}

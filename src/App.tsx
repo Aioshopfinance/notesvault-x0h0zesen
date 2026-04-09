@@ -8,6 +8,7 @@ import Scanner from '@/pages/Scanner'
 import Secrets from '@/pages/Secrets'
 import Audit from '@/pages/Audit'
 import Timesheet from '@/pages/Timesheet'
+import Settings from '@/pages/Settings'
 import NotFound from '@/pages/NotFound'
 import Auth from '@/pages/Auth'
 import { AuthProvider } from '@/hooks/use-auth'
@@ -28,6 +29,7 @@ const App = () => (
               <Route path="/secrets" element={<Secrets />} />
               <Route path="/audit" element={<Audit />} />
               <Route path="/timesheet" element={<Timesheet />} />
+              <Route path="/settings" element={<Settings />} />
             </Route>
           </Route>
           <Route path="*" element={<NotFound />} />
