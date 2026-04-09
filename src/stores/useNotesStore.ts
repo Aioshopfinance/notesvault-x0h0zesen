@@ -126,19 +126,26 @@ export default function useNotesStore() {
       }
     },
 
-    lockNote: async (id: string, password: string | null) => {
-      const isLocked = password !== null
+    lockNote: async (id: string, isLocked: boolean) => {
       globalState = {
         ...globalState,
-        notes: globalState.notes.map((n) =>
-          n.id === id ? { ...n, isLocked, lockPassword: password } : n,
-        ),
+        notes: globalState.notes.map((n) => (n.id === id ? { ...n, isLocked } : n)),
       }
       notify()
-      await supabase
-        .from('notes')
-        .update({ is_locked: isLocked, lock_password: password })
-        .eq('id', id)
+      await supabase.from('notes').update({ is_locked: isLocked }).eq('id', id)
+    },
+
+    verifyMasterPassword: async (password: string) => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return false
+      const { data } = await supabase
+        .from('user_preferences')
+        .select('master_password')
+        .eq('id', user.id)
+        .single()
+      return !!data && data.master_password === password
     },
 
     createTag: async (name: string, color: string) => {

@@ -18,6 +18,7 @@ export default function Settings() {
   const [avatarUrl, setAvatarUrl] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [masterPassword, setMasterPassword] = useState('')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -27,6 +28,17 @@ export default function Settings() {
     }
     if (user) {
       setEmail(user.email || '')
+      const fetchMasterPwd = async () => {
+        const { data } = await (supabase as any)
+          .from('user_preferences')
+          .select('master_password')
+          .eq('id', user.id)
+          .single()
+        if (data?.master_password) {
+          setMasterPassword(data.master_password)
+        }
+      }
+      fetchMasterPwd()
     }
   }, [profile, user])
 
@@ -54,6 +66,7 @@ export default function Settings() {
         id: user.id,
         full_name: fullName,
         avatar_url: avatarUrl,
+        master_password: masterPassword,
         updated_at: new Date().toISOString(),
       })
 
@@ -115,7 +128,24 @@ export default function Settings() {
                 placeholder="https://exemplo.com/avatar.jpg"
               />
             </div>
-            <div className="space-y-2 pt-2">
+
+            <div className="space-y-2 pt-4 border-t mt-4">
+              <h4 className="font-medium text-sm">Privacidade e Segurança</h4>
+              <p className="text-xs text-muted-foreground mb-2">
+                Configure uma Senha Mestre para proteger e desbloquear suas notas confidenciais.
+              </p>
+              <Label htmlFor="masterPassword">Senha Mestre (Notas Bloqueadas)</Label>
+              <Input
+                id="masterPassword"
+                type="password"
+                value={masterPassword}
+                onChange={(e) => setMasterPassword(e.target.value)}
+                placeholder="Digite sua Senha Mestre"
+              />
+            </div>
+
+            <div className="space-y-2 pt-4 border-t mt-4">
+              <h4 className="font-medium text-sm">Alterar Senha de Acesso</h4>
               <Label htmlFor="password">Nova Senha</Label>
               <Input
                 id="password"

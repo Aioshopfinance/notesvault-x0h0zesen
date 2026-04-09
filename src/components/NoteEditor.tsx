@@ -16,7 +16,6 @@ import { cn } from '@/lib/utils'
 import useNotesStore from '@/stores/useNotesStore'
 import { useToast } from '@/hooks/use-toast'
 import { NoteTagsPopover } from './NoteTagsPopover'
-import { NoteUnlockDialog } from './NoteUnlockDialog'
 
 export function NoteEditor() {
   const {
@@ -32,6 +31,7 @@ export function NoteEditor() {
     unlockedNotes,
     setUnlockedNote,
     lockNote,
+    verifyMasterPassword,
   } = useNotesStore()
   const { toast } = useToast()
 
@@ -40,7 +40,8 @@ export function NoteEditor() {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [isLockSettingsOpen, setIsLockSettingsOpen] = useState(false)
-  const [lockPasswordInput, setLockPasswordInput] = useState('')
+  const [unlockPassword, setUnlockPassword] = useState('')
+  const [isVerifying, setIsVerifying] = useState(false)
 
   useEffect(() => {
     if (activeNote) {
@@ -73,19 +74,30 @@ export function NoteEditor() {
   const handleLockSettingsSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (activeNote?.isLocked) {
-      lockNote(activeNote.id, null)
+      lockNote(activeNote.id, false)
       toast({ title: 'Bloqueio removido' })
     } else {
-      if (lockPasswordInput.length < 3) {
-        toast({ title: 'A senha deve ter pelo menos 3 caracteres', variant: 'destructive' })
-        return
-      }
-      lockNote(activeNote!.id, lockPasswordInput)
+      lockNote(activeNote!.id, true)
       setUnlockedNote(activeNote!.id)
-      toast({ title: 'Nota bloqueada com senha' })
+      toast({ title: 'Nota protegida com sucesso' })
     }
     setIsLockSettingsOpen(false)
-    setLockPasswordInput('')
+  }
+
+  const handleUnlock = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!activeNote) return
+    setIsVerifying(true)
+    const isValid = await verifyMasterPassword(unlockPassword)
+    setIsVerifying(false)
+
+    if (isValid) {
+      setUnlockedNote(activeNote.id)
+      setUnlockPassword('')
+      toast({ title: 'Nota desbloqueada' })
+    } else {
+      toast({ title: 'Senha incorreta', variant: 'destructive' })
+    }
   }
 
   if (!activeNote) {
@@ -113,22 +125,29 @@ export function NoteEditor() {
         />
         <div
           className={cn(
-            'bg-background flex flex-col items-center justify-center',
+            'bg-background flex flex-col items-center justify-center p-6 text-center animate-fade-in',
             selectedNoteId ? 'fixed inset-4 sm:inset-10 z-50 rounded-lg shadow-xl' : 'hidden',
             'lg:static lg:flex lg:flex-1 lg:h-full lg:inset-auto lg:z-auto lg:rounded-none lg:shadow-none lg:w-auto w-full',
           )}
         >
-          <Lock className="w-16 h-16 text-muted-foreground/30 mb-4" />
+          <Lock className="w-16 h-16 text-muted-foreground/50 mb-6" />
+          <p className="text-lg font-medium mb-6 max-w-md">
+            Esta nota está Bloqueada. Digite a senha da conta para ver suas notas bloqueadas.
+          </p>
+          <form onSubmit={handleUnlock} className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+            <Input
+              type="password"
+              placeholder="Senha Mestre"
+              value={unlockPassword}
+              onChange={(e) => setUnlockPassword(e.target.value)}
+              autoFocus
+              className="flex-1"
+            />
+            <Button type="submit" disabled={isVerifying}>
+              {isVerifying ? 'Aguarde...' : 'Desbloquear'}
+            </Button>
+          </form>
         </div>
-        <NoteUnlockDialog
-          isOpen={true}
-          onCancel={() => setSelectedNoteId(null)}
-          correctPassword={activeNote.lockPassword}
-          onUnlock={() => {
-            setUnlockedNote(activeNote.id)
-            toast({ title: 'Nota desbloqueada' })
-          }}
-        />
       </>
     )
   }
@@ -320,19 +339,10 @@ export function NoteEditor() {
             <DialogDescription>
               {activeNote.isLocked
                 ? 'Tem certeza que deseja remover a proteção por senha desta nota?'
-                : 'Defina uma senha para proteger esta nota contra acessos não autorizados.'}
+                : 'Esta nota será protegida pela sua Senha Mestre. Certifique-se de tê-la configurado nas Configurações da conta.'}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleLockSettingsSubmit} className="space-y-4">
-            {!activeNote.isLocked && (
-              <Input
-                type="password"
-                placeholder="Crie uma senha forte"
-                value={lockPasswordInput}
-                onChange={(e) => setLockPasswordInput(e.target.value)}
-                autoFocus
-              />
-            )}
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setIsLockSettingsOpen(false)}>
                 Cancelar

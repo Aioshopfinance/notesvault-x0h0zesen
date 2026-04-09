@@ -1,12 +1,19 @@
-import { Plus, Pin } from 'lucide-react'
+import { Plus, Pin, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import useNotesStore from '@/stores/useNotesStore'
 
 export function NotesList() {
-  const { notes, selectedFolderId, selectedNoteId, setSelectedNoteId, addNote, isLoading } =
-    useNotesStore()
+  const {
+    notes,
+    selectedFolderId,
+    selectedNoteId,
+    setSelectedNoteId,
+    addNote,
+    isLoading,
+    unlockedNotes,
+  } = useNotesStore()
 
   const filteredNotes = notes
     .filter((n) => n.folderId === selectedFolderId)
@@ -67,9 +74,13 @@ export function NotesList() {
                   </span>
                   {note.isPinned && <Pin className="w-3 h-3 text-primary shrink-0 mt-1" />}
                 </div>
-                <p className="text-xs text-muted-foreground line-clamp-2 opacity-80">
-                  {note.content || 'Sem conteúdo'}
-                </p>
+                <div className="text-xs text-muted-foreground line-clamp-2 opacity-80">
+                  {note.isLocked && !unlockedNotes.includes(note.id) ? (
+                    <Lock className="w-4 h-4 text-muted-foreground" />
+                  ) : (
+                    note.content || 'Sem conteúdo'
+                  )}
+                </div>
                 <div className="text-[10px] text-muted-foreground/60 mt-2 font-medium">
                   {new Date(note.updatedAt).toLocaleDateString('pt-BR')}
                 </div>
