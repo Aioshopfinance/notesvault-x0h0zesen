@@ -67,7 +67,7 @@ export function AppSidebar() {
 
   return (
     <>
-      <Sidebar variant="inset" className="border-r">
+      <Sidebar variant="inset" className="hidden md:flex border-r">
         <SidebarContent>
           <SidebarGroup>
             <SidebarGroupLabel>Navegação Global</SidebarGroupLabel>

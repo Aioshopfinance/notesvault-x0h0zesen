@@ -10,9 +10,9 @@ export default function Layout() {
       <div className="flex flex-col h-screen w-full overflow-hidden bg-background">
         <SidebarProvider className="flex-1 overflow-hidden">
           <AppSidebar />
-          <SidebarInset className="flex flex-col flex-1 overflow-hidden">
+          <SidebarInset className="flex flex-col flex-1 overflow-hidden w-full">
             <Header />
-            <main className="flex-1 overflow-hidden flex flex-col relative">
+            <main className="flex-1 overflow-hidden flex flex-col relative w-full">
               <Outlet />
             </main>
           </SidebarInset>
