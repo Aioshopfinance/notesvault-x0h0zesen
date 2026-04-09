@@ -1,4 +1,4 @@
-import { Clock, Settings as SettingsIcon, Trash2 } from 'lucide-react'
+import { Clock, Settings as SettingsIcon, Trash2, List, BarChart3, FileText } from 'lucide-react'
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TimesheetProvider, useTimesheetContext } from '@/components/timesheet/TimesheetContext'
@@ -127,10 +127,45 @@ function TimesheetContent() {
         </div>
 
         <Tabs defaultValue="registros" className="w-full">
-          <TabsList className="mb-4 print:hidden w-full justify-start overflow-x-auto">
-            <TabsTrigger value="registros">Registros</TabsTrigger>
-            <TabsTrigger value="dashboard">Dashboard Mensal</TabsTrigger>
-            <TabsTrigger value="relatorio">Relatório de Pagamento</TabsTrigger>
+          <TabsList className="h-auto p-0 bg-transparent gap-4 mb-8 print:hidden w-full flex flex-col sm:flex-row justify-start items-stretch">
+            <TabsTrigger
+              value="registros"
+              className="flex-1 data-[state=active]:bg-card data-[state=active]:shadow-md data-[state=active]:border-primary/50 border bg-muted/30 p-5 justify-start text-left flex flex-col items-start gap-2 h-auto whitespace-normal rounded-xl transition-all"
+            >
+              <div className="flex items-center gap-2 font-semibold text-base text-foreground">
+                <List className="w-5 h-5 text-primary" />
+                Registros
+              </div>
+              <span className="text-sm font-normal text-muted-foreground leading-snug">
+                Adicione, edite e acompanhe suas horas diárias
+              </span>
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="dashboard"
+              className="flex-1 data-[state=active]:bg-card data-[state=active]:shadow-md data-[state=active]:border-primary/50 border bg-muted/30 p-5 justify-start text-left flex flex-col items-start gap-2 h-auto whitespace-normal rounded-xl transition-all"
+            >
+              <div className="flex items-center gap-2 font-semibold text-base text-foreground">
+                <BarChart3 className="w-5 h-5 text-primary" />
+                Dashboard Mensal
+              </div>
+              <span className="text-sm font-normal text-muted-foreground leading-snug">
+                Visualize seus ganhos e estatísticas
+              </span>
+            </TabsTrigger>
+
+            <TabsTrigger
+              value="relatorio"
+              className="flex-1 data-[state=active]:bg-card data-[state=active]:shadow-md data-[state=active]:border-primary/50 border bg-muted/30 p-5 justify-start text-left flex flex-col items-start gap-2 h-auto whitespace-normal rounded-xl transition-all"
+            >
+              <div className="flex items-center gap-2 font-semibold text-base text-foreground">
+                <FileText className="w-5 h-5 text-primary" />
+                Relatório de Pagamento
+              </div>
+              <span className="text-sm font-normal text-muted-foreground leading-snug">
+                Exporte relatórios e gerencie status
+              </span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="registros" className="m-0 border-none p-0 outline-none">

@@ -237,38 +237,45 @@ export default function RecordsTab() {
         </div>
       </div>
 
-      <div className="flex justify-between items-center print:hidden">
-        <div className="text-sm text-muted-foreground">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center print:hidden gap-4">
+        <div className="text-sm text-muted-foreground font-medium">
           Mostrando {filteredRows.length} registros
         </div>
-        <div className="flex gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Columns className="w-4 h-4" /> Colunas
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Alternar Colunas</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {COLUMNS_DEF.map((c) => (
-                <DropdownMenuCheckboxItem
-                  key={c.id}
-                  checked={visibleColumns.includes(c.id)}
-                  onCheckedChange={() => toggleColumn(c.id)}
-                >
-                  {c.label}
-                </DropdownMenuCheckboxItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={resetColumns}>Resetar Padrão</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+          <div className="flex gap-2 w-full sm:w-auto">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 flex-1 sm:flex-none">
+                  <Columns className="w-4 h-4" /> Colunas
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel>Alternar Colunas</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {COLUMNS_DEF.map((c) => (
+                  <DropdownMenuCheckboxItem
+                    key={c.id}
+                    checked={visibleColumns.includes(c.id)}
+                    onCheckedChange={() => toggleColumn(c.id)}
+                  >
+                    {c.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={resetColumns}>Resetar Padrão</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          <Button variant="outline" size="sm" onClick={printPage} className="gap-2">
-            <Printer className="w-4 h-4" /> Imprimir / PDF
-          </Button>
-          <Button size="sm" onClick={() => setOpen(true)} className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={printPage}
+              className="gap-2 flex-1 sm:flex-none"
+            >
+              <Printer className="w-4 h-4" /> Imprimir / PDF
+            </Button>
+          </div>
+          <Button size="sm" onClick={() => setOpen(true)} className="gap-2 w-full sm:w-auto">
             <Plus className="w-4 h-4" /> Novo Registro
           </Button>
         </div>
@@ -307,8 +314,13 @@ export default function RecordsTab() {
                 filteredRows.map((r) => (
                   <TableRow key={r.id}>
                     {visibleColumns.includes('date') && (
-                      <TableCell className="whitespace-nowrap">
-                        {new Date(r.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                      <TableCell className="p-1 min-w-[130px]">
+                        <EditableCell
+                          type="date"
+                          value={r.date}
+                          disabled={savingId === r.id}
+                          onBlur={(v: string) => handleUpdate(r.id, 'date', v)}
+                        />
                       </TableCell>
                     )}
                     {visibleColumns.includes('start_time') && (
@@ -368,7 +380,16 @@ export default function RecordsTab() {
                         />
                       </TableCell>
                     )}
-                    {visibleColumns.includes('client') && <TableCell>{r.client || '-'}</TableCell>}
+                    {visibleColumns.includes('client') && (
+                      <TableCell className="p-1 min-w-[120px]">
+                        <EditableCell
+                          type="text"
+                          value={r.client || ''}
+                          disabled={savingId === r.id}
+                          onBlur={(v: string) => handleUpdate(r.id, 'client', v)}
+                        />
+                      </TableCell>
+                    )}
                     {visibleColumns.includes('location') && (
                       <TableCell>{r.location || '-'}</TableCell>
                     )}
