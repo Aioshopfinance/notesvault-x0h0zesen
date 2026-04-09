@@ -118,7 +118,6 @@ export default function useNotesStore() {
       globalState = {
         ...globalState,
         selectedNoteId: id,
-        unlockedNotes: id && globalState.unlockedNotes.includes(id) ? [id] : [],
       }
       notify()
     },
@@ -128,6 +127,14 @@ export default function useNotesStore() {
         globalState = { ...globalState, unlockedNotes: [...globalState.unlockedNotes, id] }
         notify()
       }
+    },
+
+    removeUnlockedNote: (id: string) => {
+      globalState = {
+        ...globalState,
+        unlockedNotes: globalState.unlockedNotes.filter((noteId) => noteId !== id),
+      }
+      notify()
     },
 
     lockNote: async (id: string, isLocked: boolean) => {

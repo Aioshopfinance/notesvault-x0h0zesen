@@ -7,6 +7,8 @@ import {
   ChevronRight,
   Pin,
   Clock,
+  Lock,
+  Unlock,
 } from 'lucide-react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
@@ -41,8 +43,16 @@ export function AppSidebar() {
   const navigate = useNavigate()
   const { toast } = useToast()
   const { setOpenMobile } = useSidebar()
-  const { folders, notes, selectedFolderId, setSelectedFolderId, addFolder, setSelectedNoteId } =
-    useNotesStore()
+  const {
+    folders,
+    notes,
+    selectedFolderId,
+    setSelectedFolderId,
+    addFolder,
+    setSelectedNoteId,
+    unlockedNotes,
+    removeUnlockedNote,
+  } = useNotesStore()
 
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
@@ -124,14 +134,31 @@ export function AppSidebar() {
               <SidebarGroupLabel>Fixados</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {pinnedNotes.map((note) => (
-                    <SidebarMenuItem key={note.id}>
-                      <SidebarMenuButton onClick={() => handleNoteClick(note.id, note.folderId)}>
-                        <Pin className="w-4 h-4 rotate-45 text-primary" />
-                        <span className="truncate">{note.title || 'Sem título'}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {pinnedNotes.map((note) => {
+                    const isUnlocked = unlockedNotes.includes(note.id)
+                    return (
+                      <SidebarMenuItem key={note.id}>
+                        <SidebarMenuButton onClick={() => handleNoteClick(note.id, note.folderId)}>
+                          {note.isLocked ? (
+                            isUnlocked ? (
+                              <Unlock
+                                className="w-4 h-4 text-primary hover:text-destructive transition-colors shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  removeUnlockedNote(note.id)
+                                }}
+                              />
+                            ) : (
+                              <Lock className="w-4 h-4 text-muted-foreground shrink-0" />
+                            )
+                          ) : (
+                            <Pin className="w-4 h-4 rotate-45 text-primary shrink-0" />
+                          )}
+                          <span className="truncate">{note.title || 'Sem título'}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
