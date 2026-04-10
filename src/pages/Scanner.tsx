@@ -1,9 +1,9 @@
 import { Camera, Maximize, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import Tesseract from 'tesseract.js'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/integrations/supabase/client'
 
 export default function Scanner() {
   const [scanning, setScanning] = useState(false)
@@ -13,7 +13,16 @@ export default function Scanner() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const { toast } = useToast()
 
-  const runOCRAndSave = async (file: File, imageData: string) => {
+  // 🔥 CORREÇÃO: limpar memória da imagem (resolve bug visual)
+  useEffect(() => {
+    return () => {
+      if (selectedImage) {
+        URL.revokeObjectURL(selectedImage)
+      }
+    }
+  }, [selectedImage])
+
+  const runOCRAndSave = async (file: File, imageUrl: string) => {
     try {
       setScanning(true)
       setResult('')
@@ -23,46 +32,39 @@ export default function Scanner() {
         error: userError,
       } = await supabase.auth.getUser()
 
-      if (userError) {
-        throw new Error(`Erro ao obter usuário: ${userError.message}`)
-      }
+      if (userError) throw new Error(userError.message)
+      if (!user) throw new Error('Usuário não autenticado.')
 
-      if (!user) {
-        throw new Error('Usuário não autenticado.')
-      }
-
-      const ocrResult = await Tesseract.recognize(imageData, 'por', {
+      // OCR
+      const ocrResult = await Tesseract.recognize(imageUrl, 'por', {
         logger: (message) => {
-          console.log('OCR progress:', message)
+          console.log('OCR:', message)
         },
       })
 
       const extractedText = ocrResult.data.text?.trim() || ''
       setResult(extractedText)
 
+      // Nome seguro do arquivo
       const fileExt = file.name.split('.').pop() || 'jpg'
-      const safeFileName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9-_]/g, '_')
+      const safeFileName = file.name
+        .replace(/\.[^/.]+$/, '')
+        .replace(/[^a-zA-Z0-9-_]/g, '_')
 
       const filePath = `${user.id}/${Date.now()}-${safeFileName}.${fileExt}`
 
-      const { error: uploadError } = await supabase.storage.from('scans').upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false,
-        contentType: file.type || 'image/jpeg',
-      })
+      // Upload
+      const { error: uploadError } = await supabase.storage
+        .from('scans')
+        .upload(filePath, file)
 
-      if (uploadError) {
-        throw new Error(`Erro no upload da imagem: ${uploadError.message}`)
-      }
+      if (uploadError) throw new Error(uploadError.message)
 
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from('scans').getPublicUrl(filePath)
+      // URL pública
+      const { data } = supabase.storage.from('scans').getPublicUrl(filePath)
+      const publicUrl = data.publicUrl
 
-      if (!publicUrl) {
-        throw new Error('Não foi possível gerar a URL pública da imagem.')
-      }
-
+      // Salvar no banco
       const { error: insertError } = await supabase.from('scans').insert({
         file_name: file.name,
         image_url: publicUrl,
@@ -70,23 +72,19 @@ export default function Scanner() {
         user_id: user.id,
       })
 
-      if (insertError) {
-        throw new Error(`Erro ao salvar no banco: ${insertError.message}`)
-      }
+      if (insertError) throw new Error(insertError.message)
 
       toast({
-        title: 'Escaneamento concluído',
-        description: extractedText
-          ? 'Texto extraído e salvo com sucesso.'
-          : 'Imagem salva com sucesso, mas nenhum texto foi identificado.',
+        title: 'Sucesso',
+        description: 'Scan salvo com sucesso 🚀',
       })
     } catch (error) {
-      console.error('Erro ao processar OCR e salvar scan:', error)
+      console.error(error)
 
       toast({
-        title: 'Erro no escaneamento',
+        title: 'Erro',
         description:
-          error instanceof Error ? error.message : 'Não foi possível processar e salvar a imagem.',
+          error instanceof Error ? error.message : 'Erro no processamento',
         variant: 'destructive',
       })
     } finally {
@@ -94,14 +92,16 @@ export default function Scanner() {
     }
   }
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0]
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
       toast({
         title: 'Arquivo inválido',
-        description: 'Selecione uma imagem válida.',
+        description: 'Selecione uma imagem válida',
         variant: 'destructive',
       })
       return
@@ -110,24 +110,10 @@ export default function Scanner() {
     setSelectedFile(file)
     setResult('')
 
-    const reader = new FileReader()
+    const imageUrl = URL.createObjectURL(file)
+    setSelectedImage(imageUrl)
 
-    reader.onload = async () => {
-      const imageData = reader.result as string
-      setSelectedImage(imageData)
-      await runOCRAndSave(file, imageData)
-    }
-
-    reader.onerror = () => {
-      setScanning(false)
-      toast({
-        title: 'Erro ao ler arquivo',
-        description: 'Não foi possível carregar a imagem selecionada.',
-        variant: 'destructive',
-      })
-    }
-
-    reader.readAsDataURL(file)
+    await runOCRAndSave(file, imageUrl)
   }
 
   const handleCaptureClick = () => {
@@ -137,11 +123,13 @@ export default function Scanner() {
   return (
     <div className="flex-1 overflow-auto p-4 md:p-8 bg-background">
       <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-8">
+
+        {/* ESQUERDA */}
         <div className="flex-1 flex flex-col gap-6">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight mb-2">Scanner OCR</h2>
+            <h2 className="text-3xl font-bold mb-2">Scanner OCR</h2>
             <p className="text-muted-foreground">
-              Digitalize documentos e extraia o texto automaticamente.
+              Digitalize documentos e extraia texto automaticamente.
             </p>
           </div>
 
@@ -154,65 +142,61 @@ export default function Scanner() {
             className="hidden"
           />
 
-          <div className="relative aspect-[3/4] sm:aspect-video bg-muted/50 rounded-2xl border-2 border-dashed border-muted-foreground/30 flex items-center justify-center overflow-hidden shadow-inner">
-            {selectedImage && !scanning ? (
+          <div className="relative h-[400px] bg-muted/50 rounded-2xl border flex items-center justify-center overflow-hidden">
+
+            {selectedImage && !scanning && (
               <img
                 src={selectedImage}
-                alt="Documento selecionado"
-                className="absolute inset-0 w-full h-full object-contain"
+                alt="preview"
+                className="max-h-full max-w-full object-contain"
               />
-            ) : null}
+            )}
 
-            {scanning ? (
-              <div className="absolute inset-0 bg-primary/5 flex flex-col items-center justify-center animate-pulse z-10">
-                <div className="w-full h-1 bg-primary/50 absolute top-1/2 -translate-y-1/2 shadow-[0_0_15px_rgba(59,130,246,0.5)] animate-[slide-down_2s_ease-in-out_infinite_alternate]" />
-                <Maximize className="w-12 h-12 text-primary animate-spin" />
-                <span className="mt-4 font-medium text-primary">Analisando documento...</span>
+            {scanning && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <Maximize className="animate-spin w-10 h-10" />
+                <span className="mt-2">Processando...</span>
               </div>
-            ) : !selectedImage ? (
+            )}
+
+            {!selectedImage && !scanning && (
               <div className="text-center text-muted-foreground">
                 <Camera className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                <p>Selecione ou capture uma imagem do documento</p>
+                <p>Selecione uma imagem</p>
               </div>
-            ) : null}
+            )}
           </div>
 
-          <Button
-            onClick={handleCaptureClick}
-            disabled={scanning}
-            className="w-full h-14 text-lg shadow-elevation transition-all hover:translate-y-[-2px]"
-          >
+          <Button onClick={handleCaptureClick} disabled={scanning}>
             <Camera className="mr-2 w-5 h-5" />
-            {scanning ? 'Processando Imagem...' : 'Capturar e Extrair Texto'}
+            {scanning ? 'Processando...' : 'Capturar e Extrair Texto'}
           </Button>
 
           {selectedFile && !scanning && (
-            <div className="text-sm text-muted-foreground">
-              Arquivo selecionado: <strong>{selectedFile.name}</strong>
-            </div>
+            <p className="text-sm text-muted-foreground">
+              {selectedFile.name}
+            </p>
           )}
         </div>
 
+        {/* DIREITA */}
         <div className="flex-1 flex flex-col gap-6">
-          <h3 className="text-xl font-semibold flex items-center gap-2 pt-2 md:pt-14">
-            <FileText className="w-5 h-5 text-primary" />
+          <h3 className="text-xl font-semibold flex items-center gap-2">
+            <FileText className="w-5 h-5" />
             Texto Extraído
           </h3>
 
-          <div className="flex-1 p-6 bg-card rounded-2xl min-h-[300px] border shadow-sm relative overflow-hidden group">
-            {!result && !scanning && (
-              <div className="absolute inset-0 flex items-center justify-center text-muted-foreground/50 text-sm text-center px-6">
-                O resultado do OCR aparecerá aqui.
-              </div>
-            )}
-
-            {result && (
-              <div className="whitespace-pre-wrap font-mono text-sm leading-relaxed animate-fade-in-up">
-                {result}
-              </div>
+          <div className="flex-1 p-4 bg-card rounded-2xl border min-h-[300px] overflow-auto">
+            {result ? (
+              <pre className="whitespace-pre-wrap text-sm">{result}</pre>
+            ) : (
+              <p className="text-muted-foreground text-sm text-center mt-10">
+                O texto aparecerá aqui
+              </p>
             )}
           </div>
         </div>
+
       </div>
     </div>
   )
