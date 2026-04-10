@@ -47,16 +47,12 @@ export default function Scanner() {
 
       // Nome seguro do arquivo
       const fileExt = file.name.split('.').pop() || 'jpg'
-      const safeFileName = file.name
-        .replace(/\.[^/.]+$/, '')
-        .replace(/[^a-zA-Z0-9-_]/g, '_')
+      const safeFileName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9-_]/g, '_')
 
       const filePath = `${user.id}/${Date.now()}-${safeFileName}.${fileExt}`
 
       // Upload
-      const { error: uploadError } = await supabase.storage
-        .from('scans')
-        .upload(filePath, file)
+      const { error: uploadError } = await supabase.storage.from('scans').upload(filePath, file)
 
       if (uploadError) throw new Error(uploadError.message)
 
@@ -83,8 +79,7 @@ export default function Scanner() {
 
       toast({
         title: 'Erro',
-        description:
-          error instanceof Error ? error.message : 'Erro no processamento',
+        description: error instanceof Error ? error.message : 'Erro no processamento',
         variant: 'destructive',
       })
     } finally {
@@ -92,9 +87,7 @@ export default function Scanner() {
     }
   }
 
-  const handleImageUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -123,7 +116,6 @@ export default function Scanner() {
   return (
     <div className="flex-1 overflow-auto p-4 md:p-8 bg-background">
       <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-8">
-
         {/* ESQUERDA */}
         <div className="flex-1 flex flex-col gap-6">
           <div>
@@ -143,7 +135,6 @@ export default function Scanner() {
           />
 
           <div className="relative h-[400px] bg-muted/50 rounded-2xl border flex items-center justify-center overflow-hidden">
-
             {selectedImage && !scanning && (
               <img
                 src={selectedImage}
@@ -173,9 +164,7 @@ export default function Scanner() {
           </Button>
 
           {selectedFile && !scanning && (
-            <p className="text-sm text-muted-foreground">
-              {selectedFile.name}
-            </p>
+            <p className="text-sm text-muted-foreground">{selectedFile.name}</p>
           )}
         </div>
 
@@ -196,7 +185,6 @@ export default function Scanner() {
             )}
           </div>
         </div>
-
       </div>
     </div>
   )
