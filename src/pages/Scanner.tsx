@@ -41,19 +41,15 @@ export default function Scanner() {
       setResult(extractedText)
 
       const fileExt = file.name.split('.').pop() || 'jpg'
-      const safeFileName = file.name
-        .replace(/\.[^/.]+$/, '')
-        .replace(/[^a-zA-Z0-9-_]/g, '_')
+      const safeFileName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9-_]/g, '_')
 
       const filePath = `${user.id}/${Date.now()}-${safeFileName}.${fileExt}`
 
-      const { error: uploadError } = await supabase.storage
-        .from('scans')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false,
-          contentType: file.type || 'image/jpeg',
-        })
+      const { error: uploadError } = await supabase.storage.from('scans').upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type || 'image/jpeg',
+      })
 
       if (uploadError) {
         throw new Error(`Erro no upload da imagem: ${uploadError.message}`)
@@ -90,9 +86,7 @@ export default function Scanner() {
       toast({
         title: 'Erro no escaneamento',
         description:
-          error instanceof Error
-            ? error.message
-            : 'Não foi possível processar e salvar a imagem.',
+          error instanceof Error ? error.message : 'Não foi possível processar e salvar a imagem.',
         variant: 'destructive',
       })
     } finally {
