@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { useRef, useState, useEffect } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import Tesseract from 'tesseract.js'
-import { supabase } from '@/integrations/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 
 export default function Scanner() {
   const [scanning, setScanning] = useState(false)
