@@ -3,38 +3,96 @@ import { Button } from '@/components/ui/button'
 import { useRef, useState } from 'react'
 import { useToast } from '@/hooks/use-toast'
 import Tesseract from 'tesseract.js'
+import { supabase } from '@/integrations/supabase/client'
 
 export default function Scanner() {
   const [scanning, setScanning] = useState(false)
   const [result, setResult] = useState('')
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const { toast } = useToast()
 
-  const runOCR = async (image: string) => {
+  const runOCRAndSave = async (file: File, imageData: string) => {
     try {
-      const ocrResult = await Tesseract.recognize(image, 'por', {
+      setScanning(true)
+      setResult('')
+
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+
+      if (userError) {
+        throw new Error(`Erro ao obter usuário: ${userError.message}`)
+      }
+
+      if (!user) {
+        throw new Error('Usuário não autenticado.')
+      }
+
+      const ocrResult = await Tesseract.recognize(imageData, 'por', {
         logger: (message) => {
           console.log('OCR progress:', message)
         },
       })
 
       const extractedText = ocrResult.data.text?.trim() || ''
-
       setResult(extractedText)
+
+      const fileExt = file.name.split('.').pop() || 'jpg'
+      const safeFileName = file.name
+        .replace(/\.[^/.]+$/, '')
+        .replace(/[^a-zA-Z0-9-_]/g, '_')
+
+      const filePath = `${user.id}/${Date.now()}-${safeFileName}.${fileExt}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('scans')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type || 'image/jpeg',
+        })
+
+      if (uploadError) {
+        throw new Error(`Erro no upload da imagem: ${uploadError.message}`)
+      }
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('scans').getPublicUrl(filePath)
+
+      if (!publicUrl) {
+        throw new Error('Não foi possível gerar a URL pública da imagem.')
+      }
+
+      const { error: insertError } = await supabase.from('scans').insert({
+        file_name: file.name,
+        image_url: publicUrl,
+        extracted_text: extractedText,
+        user_id: user.id,
+      })
+
+      if (insertError) {
+        throw new Error(`Erro ao salvar no banco: ${insertError.message}`)
+      }
 
       toast({
         title: 'Escaneamento concluído',
         description: extractedText
-          ? 'Texto extraído com sucesso via OCR real.'
-          : 'Nenhum texto foi identificado na imagem.',
+          ? 'Texto extraído e salvo com sucesso.'
+          : 'Imagem salva com sucesso, mas nenhum texto foi identificado.',
       })
     } catch (error) {
-      console.error('Erro ao processar OCR:', error)
+      console.error('Erro ao processar OCR e salvar scan:', error)
 
       toast({
         title: 'Erro no escaneamento',
-        description: 'Não foi possível processar a imagem.',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível processar e salvar a imagem.',
         variant: 'destructive',
       })
     } finally {
@@ -57,7 +115,7 @@ export default function Scanner() {
       return
     }
 
-    setScanning(true)
+    setSelectedFile(file)
     setResult('')
 
     const reader = new FileReader()
@@ -65,7 +123,7 @@ export default function Scanner() {
     reader.onload = async () => {
       const imageData = reader.result as string
       setSelectedImage(imageData)
-      await runOCR(imageData)
+      await runOCRAndSave(file, imageData)
     }
 
     reader.onerror = () => {
@@ -139,6 +197,12 @@ export default function Scanner() {
             <Camera className="mr-2 w-5 h-5" />
             {scanning ? 'Processando Imagem...' : 'Capturar e Extrair Texto'}
           </Button>
+
+          {selectedFile && !scanning && (
+            <div className="text-sm text-muted-foreground">
+              Arquivo selecionado: <strong>{selectedFile.name}</strong>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 flex flex-col gap-6">
