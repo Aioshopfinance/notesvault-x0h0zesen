@@ -13,7 +13,7 @@ export default function Scanner() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const { toast } = useToast()
 
-  const runOCRAndSave = async (file: File, imageData: string) => {
+  const runOCRAndSave = async (file: File, imageUrl: string) => {
     try {
       setScanning(true)
       setResult('')
@@ -31,7 +31,7 @@ export default function Scanner() {
         throw new Error('Usuário não autenticado.')
       }
 
-      const ocrResult = await Tesseract.recognize(imageData, 'por', {
+      const ocrResult = await Tesseract.recognize(imageUrl, 'por', {
         logger: (message) => {
           console.log('OCR progress:', message)
         },
@@ -100,7 +100,9 @@ export default function Scanner() {
     }
   }
 
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0]
     if (!file) return
 
@@ -116,24 +118,10 @@ export default function Scanner() {
     setSelectedFile(file)
     setResult('')
 
-    const reader = new FileReader()
+    const imageUrl = URL.createObjectURL(file)
+    setSelectedImage(imageUrl)
 
-    reader.onload = async () => {
-      const imageData = reader.result as string
-      setSelectedImage(imageData)
-      await runOCRAndSave(file, imageData)
-    }
-
-    reader.onerror = () => {
-      setScanning(false)
-      toast({
-        title: 'Erro ao ler arquivo',
-        description: 'Não foi possível carregar a imagem selecionada.',
-        variant: 'destructive',
-      })
-    }
-
-    reader.readAsDataURL(file)
+    await runOCRAndSave(file, imageUrl)
   }
 
   const handleCaptureClick = () => {
@@ -145,7 +133,9 @@ export default function Scanner() {
       <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-8">
         <div className="flex-1 flex flex-col gap-6">
           <div>
-            <h2 className="text-3xl font-bold tracking-tight mb-2">Scanner OCR</h2>
+            <h2 className="text-3xl font-bold tracking-tight mb-2">
+              Scanner OCR
+            </h2>
             <p className="text-muted-foreground">
               Digitalize documentos e extraia o texto automaticamente.
             </p>
@@ -173,7 +163,9 @@ export default function Scanner() {
               <div className="absolute inset-0 bg-primary/5 flex flex-col items-center justify-center animate-pulse z-10">
                 <div className="w-full h-1 bg-primary/50 absolute top-1/2 -translate-y-1/2 shadow-[0_0_15px_rgba(59,130,246,0.5)] animate-[slide-down_2s_ease-in-out_infinite_alternate]" />
                 <Maximize className="w-12 h-12 text-primary animate-spin" />
-                <span className="mt-4 font-medium text-primary">Analisando documento...</span>
+                <span className="mt-4 font-medium text-primary">
+                  Analisando documento...
+                </span>
               </div>
             ) : !selectedImage ? (
               <div className="text-center text-muted-foreground">
