@@ -5,6 +5,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import Layout from '@/components/Layout'
 import Index from '@/pages/Index'
 import Scanner from '@/pages/Scanner'
+import MeusScans from '@/pages/MeusScans'
 import Secrets from '@/pages/Secrets'
 import Audit from '@/pages/Audit'
 import Timesheet from '@/pages/Timesheet'
@@ -22,16 +23,19 @@ const App = () => (
         <Sonner />
         <Routes>
           <Route path="/auth" element={<Auth />} />
+
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               <Route path="/" element={<Index />} />
               <Route path="/scanner" element={<Scanner />} />
+              <Route path="/meus-scans" element={<MeusScans />} />
               <Route path="/secrets" element={<Secrets />} />
               <Route path="/audit" element={<Audit />} />
               <Route path="/timesheet" element={<Timesheet />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
           </Route>
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </TooltipProvider>
