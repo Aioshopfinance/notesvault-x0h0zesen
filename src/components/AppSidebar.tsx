@@ -4,6 +4,7 @@ import {
   KeyRound,
   Activity,
   FileText,
+  Library,
   ChevronRight,
   Pin,
   Clock,
@@ -154,6 +155,13 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild isActive={location.pathname === '/scanner'}>
                     <Link to="/scanner" onClick={handleLinkClick}>
                       <ScanLine /> Scanner OCR
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location.pathname === '/meus-scans'}>
+                    <Link to="/meus-scans" onClick={handleLinkClick}>
+                      <Library /> Meus Scans
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
