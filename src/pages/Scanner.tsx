@@ -9,7 +9,6 @@ import { supabase } from '@/lib/supabase/client'
 import ImagePreview from '@/components/scanner/ImagePreview'
 
 export default function Scanner() {
-
   const [scanning, setScanning] = useState(false)
   const [result, setResult] = useState('')
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
@@ -52,37 +51,27 @@ export default function Scanner() {
 
       // Nome seguro
       const fileExt = file.name.split('.').pop() || 'jpg'
-      const safeFileName = file.name
-        .replace(/\.[^/.]+$/, '')
-        .replace(/[^a-zA-Z0-9-_]/g, '_')
+      const safeFileName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9-_]/g, '_')
 
       const filePath = `${user.id}/${Date.now()}-${safeFileName}.${fileExt}`
 
       // Upload
-      const { error: uploadError } = await supabase
-        .storage
-        .from('scans')
-        .upload(filePath, file)
+      const { error: uploadError } = await supabase.storage.from('scans').upload(filePath, file)
 
       if (uploadError) throw new Error(uploadError.message)
 
       // URL pública
-      const { data } = supabase
-        .storage
-        .from('scans')
-        .getPublicUrl(filePath)
+      const { data } = supabase.storage.from('scans').getPublicUrl(filePath)
 
       const publicUrl = data.publicUrl
 
       // Salvar no banco
-      const { error: insertError } = await supabase
-        .from('scans')
-        .insert({
-          file_name: file.name,
-          image_url: publicUrl,
-          extracted_text: extractedText,
-          user_id: user.id,
-        })
+      const { error: insertError } = await supabase.from('scans').insert({
+        file_name: file.name,
+        image_url: publicUrl,
+        extracted_text: extractedText,
+        user_id: user.id,
+      })
 
       if (insertError) throw new Error(insertError.message)
 
@@ -90,7 +79,6 @@ export default function Scanner() {
         title: 'Sucesso',
         description: 'Scan salvo com sucesso 🚀',
       })
-
     } catch (error) {
       console.error(error)
 
@@ -99,7 +87,6 @@ export default function Scanner() {
         description: error instanceof Error ? error.message : 'Erro no processamento',
         variant: 'destructive',
       })
-
     } finally {
       setScanning(false)
     }
@@ -133,12 +120,9 @@ export default function Scanner() {
 
   return (
     <div className="flex-1 overflow-auto p-4 md:p-8 bg-background">
-
       <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-8">
-
         {/* ESQUERDA */}
         <div className="flex-1 flex flex-col gap-6">
-
           <div>
             <h2 className="text-3xl font-bold mb-2">Scanner OCR</h2>
             <p className="text-muted-foreground">
@@ -164,16 +148,12 @@ export default function Scanner() {
           </Button>
 
           {selectedFile && !scanning && (
-            <p className="text-sm text-muted-foreground">
-              {selectedFile.name}
-            </p>
+            <p className="text-sm text-muted-foreground">{selectedFile.name}</p>
           )}
-
         </div>
 
         {/* DIREITA */}
         <div className="flex-1 flex flex-col gap-6">
-
           <h3 className="text-xl font-semibold flex items-center gap-2">
             <FileText className="w-5 h-5" />
             Texto Extraído
@@ -188,11 +168,8 @@ export default function Scanner() {
               </p>
             )}
           </div>
-
         </div>
-
       </div>
-
     </div>
   )
 }
