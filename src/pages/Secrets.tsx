@@ -51,12 +51,13 @@ import {
 } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import useSecretsStore, { AppSecret } from '@/stores/useSecretsStore'
+import useNotesStore from '@/stores/useNotesStore'
 import { useToast } from '@/hooks/use-toast'
-import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
 
 export default function Secrets() {
   const { secrets, addSecret, updateSecret, deleteSecret, logAudit } = useSecretsStore()
+  const { verifyMasterPassword } = useNotesStore()
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -156,26 +157,9 @@ export default function Secrets() {
     setMasterPasswordLoading(true)
 
     try {
-      const { data, error } = await (supabase as any)
-        .from('user_preferences')
-        .select('master_password')
-        .eq('id', user.id)
-        .single()
+      const isValid = await verifyMasterPassword(masterPasswordInput)
 
-      if (error) throw error
-
-      const savedMasterPassword = data?.master_password
-
-      if (!savedMasterPassword) {
-        toast({
-          title: 'Senha mestre não configurada',
-          description: 'Cadastre sua senha mestre em Configurações antes de desbloquear secrets.',
-          variant: 'destructive',
-        })
-        return
-      }
-
-      if (masterPasswordInput !== savedMasterPassword) {
+      if (!isValid) {
         logAudit({
           action: 'Tentativa de Desbloqueio',
           secretName: unlockingSecret.name,
@@ -184,7 +168,7 @@ export default function Secrets() {
 
         toast({
           title: 'Senha mestre incorreta',
-          description: 'A senha digitada não confere.',
+          description: 'A senha digitada não confere ou não foi configurada.',
           variant: 'destructive',
         })
         return
