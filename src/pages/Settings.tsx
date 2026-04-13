@@ -164,7 +164,11 @@ function ProfileForm({ user, profile, refreshProfile }: any) {
       if (refreshProfile) await refreshProfile()
       toast({ title: 'Perfil atualizado com sucesso!' })
     } catch (error: any) {
-      toast({ title: 'Erro ao salvar perfil', description: error.message, variant: 'destructive' })
+      toast({
+        title: 'Erro ao salvar perfil',
+        description: error.message,
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }
@@ -178,27 +182,17 @@ function ProfileForm({ user, profile, refreshProfile }: any) {
         <CardTitle>Perfil da Conta</CardTitle>
         <CardDescription>Atualize suas informações pessoais e de contato.</CardDescription>
       </CardHeader>
+
       <CardContent className="overflow-y-auto pb-20 flex-1">
         <div className="flex items-center gap-4 mb-8">
           <Avatar className="w-16 h-16 border">
             <AvatarImage src={formData.avatarUrl} alt={formData.fullName} />
             <AvatarFallback className="text-lg">{initials}</AvatarFallback>
           </Avatar>
+
           <div>
-            <h2 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-              <KeyRound className="w-8 h-8 text-primary" />
-              Gerenciador de Secrets
-            </h2>
-
-            <p className="text-muted-foreground mt-1 flex items-center gap-1">
-              <ShieldAlert className="w-4 h-4 text-amber-500" />
-              Cofre criptografado para dados sensíveis.
-            </p>
-
-            <p className="text-xs text-amber-500 mt-2">
-              🔒 Para usar ações como copiar, editar ou excluir, primeiro desbloqueie o cadeado da
-              linha.
-            </p>
+            <h3 className="font-medium text-lg">{formData.fullName || 'Seu Nome'}</h3>
+            <p className="text-sm text-muted-foreground">{user?.email}</p>
           </div>
         </div>
 
@@ -209,171 +203,8 @@ function ProfileForm({ user, profile, refreshProfile }: any) {
               <Input id="fullName" value={formData.fullName} onChange={handleChange} />
             </div>
 
-            <TableBody>
-              {secrets.map((secret) => {
-                const isUnlocked = isSecretUnlocked(secret.id)
-                const isRevealed = !!revealed[secret.id]
-
-                return (
-                  <TableRow key={secret.id}>
-                    <TableCell className="font-medium">{secret.name}</TableCell>
-
-                    <TableCell>
-                      <Badge variant="outline">{secret.type}</Badge>
-                    </TableCell>
-
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Intl.DateTimeFormat('pt-BR', {
-                        dateStyle: 'short',
-                        timeStyle: 'short',
-                      }).format(new Date(secret.createdAt))}
-                    </TableCell>
-
-                    <TableCell className="font-mono text-sm text-muted-foreground break-all">
-                      {isUnlocked && isRevealed ? secret.value : maskValue(secret.value)}
-                    </TableCell>
-
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1 sm:gap-2">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => toggleLock(secret)}
-                              className={
-                                isUnlocked
-                                  ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
-                                  : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
-                              }
-                            >
-                              {isUnlocked ? (
-                                <Unlock className="w-4 h-4" />
-                              ) : (
-                                <Lock className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {isUnlocked ? 'Bloquear linha' : 'Desbloquear linha'}
-                          </TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleCopy(secret)}
-                                disabled={!isUnlocked}
-                              >
-                                <Copy className="w-4 h-4" />
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {isUnlocked ? 'Copiar' : 'Desbloqueie para copiar'}
-                          </TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => toggleReveal(secret)}
-                                disabled={!isUnlocked}
-                                className={
-                                  isUnlocked && isRevealed
-                                    ? 'text-destructive hover:text-destructive/90 hover:bg-destructive/10'
-                                    : ''
-                                }
-                              >
-                                {isUnlocked && isRevealed ? (
-                                  <EyeOff className="w-4 h-4" />
-                                ) : (
-                                  <Eye className="w-4 h-4" />
-                                )}
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {!isUnlocked
-                              ? 'Desbloqueie para visualizar'
-                              : isRevealed
-                                ? 'Ocultar valor'
-                                : 'Visualizar valor'}
-                          </TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openEditModal(secret)}
-                                disabled={!isUnlocked}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {isUnlocked ? 'Editar' : 'Desbloqueie para editar'}
-                          </TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => askDelete(secret)}
-                                disabled={!isUnlocked}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {isUnlocked ? 'Deletar' : 'Desbloqueie para excluir'}
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-
-              {secrets.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Nenhuma secret cadastrada.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{editingId ? 'Editar Secret' : 'Nova Secret'}</DialogTitle>
-            <DialogDescription>
-              Armazene chaves de API, senhas ou tokens com segurança.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Nome identificador</label>
+            <div className="space-y-2">
+              <Label htmlFor="avatarUrl">URL do Avatar</Label>
               <Input
                 id="avatarUrl"
                 value={formData.avatarUrl}
@@ -515,6 +346,7 @@ function SecurityForm({ user }: { user: any }) {
         <CardTitle>Privacidade e Segurança</CardTitle>
         <CardDescription>Gerencie sua senha de acesso ao aplicativo.</CardDescription>
       </CardHeader>
+
       <CardContent>
         <form onSubmit={handleSave} className="space-y-4">
           <div className="space-y-2">
@@ -647,6 +479,7 @@ function MasterPasswordForm({ user }: { user: any }) {
           Configure ou altere sua senha mestre usada para proteger anotações confidenciais.
         </CardDescription>
       </CardHeader>
+
       <CardContent>
         <form onSubmit={handleSave} className="space-y-4">
           {hasMasterPassword && (
