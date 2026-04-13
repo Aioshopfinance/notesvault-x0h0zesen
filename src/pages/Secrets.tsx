@@ -10,6 +10,7 @@ import {
   Trash2,
   Lock,
   Unlock,
+  Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -51,22 +52,31 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import useSecretsStore, { AppSecret } from '@/stores/useSecretsStore'
 import { useToast } from '@/hooks/use-toast'
+import { supabase } from '@/lib/supabase/client'
+import { useAuth } from '@/hooks/use-auth'
 
 export default function Secrets() {
   const { secrets, addSecret, updateSecret, deleteSecret, logAudit } = useSecretsStore()
   const { toast } = useToast()
+  const { user } = useAuth()
 
-  // controla se a linha está desbloqueada
   const [unlocked, setUnlocked] = useState<Record<string, boolean>>({})
-  // controla se o valor está visível
   const [revealed, setRevealed] = useState<Record<string, boolean>>({})
-
   const unlockTimersRef = useRef<Record<string, NodeJS.Timeout>>({})
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [formData, setFormData] = useState({ name: '', type: 'API Key', value: '' })
+  const [formData, setFormData] = useState({
+    name: '',
+    type: 'API Key',
+    value: '',
+  })
   const [secretToDelete, setSecretToDelete] = useState<AppSecret | null>(null)
+
+  const [isUnlockDialogOpen, setIsUnlockDialogOpen] = useState(false)
+  const [unlockingSecret, setUnlockingSecret] = useState<AppSecret | null>(null)
+  const [masterPasswordInput, setMasterPasswordInput] = useState('')
+  const [masterPasswordLoading, setMasterPasswordLoading] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -104,18 +114,107 @@ export default function Secrets() {
       clearTimeout(unlockTimersRef.current[secret.id])
     }
 
-    // auto-bloqueio após 15 segundos
     unlockTimersRef.current[secret.id] = setTimeout(() => {
       setUnlocked((prev) => ({ ...prev, [secret.id]: false }))
       setRevealed((prev) => ({ ...prev, [secret.id]: false }))
+
+      logAudit({
+        action: 'Bloqueio Automático',
+        secretName: secret.name,
+        status: 'Sucesso',
+      })
     }, 15000)
+  }
+
+  const openUnlockDialog = (secret: AppSecret) => {
+    setUnlockingSecret(secret)
+    setMasterPasswordInput('')
+    setIsUnlockDialogOpen(true)
+  }
+
+  const handleConfirmUnlock = async () => {
+    if (!user?.id) {
+      toast({
+        title: 'Usuário não autenticado',
+        description: 'Faça login novamente para continuar.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    if (!unlockingSecret) return
+
+    if (!masterPasswordInput.trim()) {
+      toast({
+        title: 'Senha obrigatória',
+        description: 'Digite sua senha mestre para desbloquear.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setMasterPasswordLoading(true)
+
+    try {
+      const { data, error } = await (supabase as any)
+        .from('user_preferences')
+        .select('master_password')
+        .eq('id', user.id)
+        .single()
+
+      if (error) throw error
+
+      const savedMasterPassword = data?.master_password
+
+      if (!savedMasterPassword) {
+        toast({
+          title: 'Senha mestre não configurada',
+          description: 'Cadastre sua senha mestre em Configurações antes de desbloquear secrets.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      if (masterPasswordInput !== savedMasterPassword) {
+        logAudit({
+          action: 'Tentativa de Desbloqueio',
+          secretName: unlockingSecret.name,
+          status: 'Falha',
+        })
+
+        toast({
+          title: 'Senha mestre incorreta',
+          description: 'A senha digitada não confere.',
+          variant: 'destructive',
+        })
+        return
+      }
+
+      unlockSecret(unlockingSecret)
+      setIsUnlockDialogOpen(false)
+      setUnlockingSecret(null)
+      setMasterPasswordInput('')
+
+      toast({
+        title: 'Secret desbloqueada',
+        description: 'Acesso liberado por 15 segundos.',
+      })
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao validar senha mestre',
+        description: error?.message || 'Não foi possível validar a senha mestre.',
+        variant: 'destructive',
+      })
+    } finally {
+      setMasterPasswordLoading(false)
+    }
   }
 
   const toggleLock = (secret: AppSecret) => {
     if (isSecretUnlocked(secret.id)) {
       lockSecret(secret)
     } else {
-      unlockSecret(secret)
+      openUnlockDialog(secret)
     }
   }
 
@@ -130,6 +229,7 @@ export default function Secrets() {
     }
 
     const isNowRevealed = !revealed[secret.id]
+
     setRevealed((prev) => ({ ...prev, [secret.id]: isNowRevealed }))
 
     logAudit({
@@ -139,7 +239,7 @@ export default function Secrets() {
     })
   }
 
-  const handleCopy = (secret: AppSecret) => {
+  const handleCopy = async (secret: AppSecret) => {
     if (!isSecretUnlocked(secret.id)) {
       toast({
         title: 'Secret protegida',
@@ -149,18 +249,26 @@ export default function Secrets() {
       return
     }
 
-    navigator.clipboard.writeText(secret.value)
+    try {
+      await navigator.clipboard.writeText(secret.value)
 
-    toast({
-      title: 'Copiado!',
-      description: 'Secret copiada para a área de transferência.',
-    })
+      toast({
+        title: 'Copiado!',
+        description: 'Secret copiada para a área de transferência.',
+      })
 
-    logAudit({
-      action: 'Cópia',
-      secretName: secret.name,
-      status: 'Sucesso',
-    })
+      logAudit({
+        action: 'Cópia',
+        secretName: secret.name,
+        status: 'Sucesso',
+      })
+    } catch {
+      toast({
+        title: 'Erro ao copiar',
+        description: 'Não foi possível copiar a secret.',
+        variant: 'destructive',
+      })
+    }
   }
 
   const openAddModal = () => {
@@ -269,7 +377,8 @@ export default function Secrets() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <div>
             <h2 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-              <KeyRound className="w-8 h-8 text-primary" /> Gerenciador de Secrets
+              <KeyRound className="w-8 h-8 text-primary" />
+              Gerenciador de Secrets
             </h2>
 
             <p className="text-muted-foreground mt-1 flex items-center gap-1">
@@ -278,13 +387,13 @@ export default function Secrets() {
             </p>
 
             <p className="text-xs text-amber-500 mt-2">
-              🔒 Para usar ações como copiar, editar ou excluir, primeiro desbloqueie o cadeado da
-              linha.
+              🔒 Para usar ações como copiar, editar ou excluir, primeiro desbloqueie o cadeado da linha.
             </p>
           </div>
 
           <Button onClick={openAddModal} className="shadow-md">
-            <Plus className="w-4 h-4 mr-2" /> Adicionar Secret
+            <Plus className="w-4 h-4 mr-2" />
+            Adicionar Secret
           </Button>
         </div>
 
@@ -338,11 +447,7 @@ export default function Secrets() {
                                   : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
                               }
                             >
-                              {isUnlocked ? (
-                                <Unlock className="w-4 h-4" />
-                              ) : (
-                                <Lock className="w-4 h-4" />
-                              )}
+                              {isUnlocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -390,7 +495,13 @@ export default function Secrets() {
                               </Button>
                             </span>
                           </TooltipTrigger>
-                          <TooltipContent>{isUnlocked ? 'Ocultar' : 'Visualizar'}</TooltipContent>
+                          <TooltipContent>
+                            {!isUnlocked
+                              ? 'Desbloqueie para visualizar'
+                              : isRevealed
+                              ? 'Ocultar valor'
+                              : 'Visualizar valor'}
+                          </TooltipContent>
                         </Tooltip>
 
                         <Tooltip>
@@ -502,6 +613,54 @@ export default function Secrets() {
             </Button>
             <Button onClick={handleSave}>
               {editingId ? 'Salvar Alterações' : 'Salvar Secret'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isUnlockDialogOpen} onOpenChange={setIsUnlockDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Desbloquear Secret</DialogTitle>
+            <DialogDescription>
+              Digite sua senha mestre para liberar o acesso temporário a esta secret.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">Senha Mestre</label>
+              <Input
+                type="password"
+                placeholder="Digite sua senha mestre"
+                value={masterPasswordInput}
+                onChange={(e) => setMasterPasswordInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    void handleConfirmUnlock()
+                  }
+                }}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsUnlockDialogOpen(false)
+                setUnlockingSecret(null)
+                setMasterPasswordInput('')
+              }}
+              disabled={masterPasswordLoading}
+            >
+              Cancelar
+            </Button>
+
+            <Button onClick={handleConfirmUnlock} disabled={masterPasswordLoading}>
+              {masterPasswordLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Desbloquear
             </Button>
           </DialogFooter>
         </DialogContent>
