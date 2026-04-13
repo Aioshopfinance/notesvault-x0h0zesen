@@ -51,7 +51,6 @@ export default function Secrets() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState({ name: '', type: 'API Key', value: '' })
-
   const [secretToDelete, setSecretToDelete] = useState<AppSecret | null>(null)
 
   useEffect(() => {
@@ -62,6 +61,7 @@ export default function Secrets() {
 
   const toggleReveal = (secret: AppSecret) => {
     const isNowRevealed = !revealed[secret.id]
+
     setRevealed((prev) => ({ ...prev, [secret.id]: isNowRevealed }))
 
     if (isNowRevealed) {
@@ -86,8 +86,22 @@ export default function Secrets() {
   }
 
   const handleCopy = (secret: AppSecret) => {
+    if (!revealed[secret.id]) {
+      toast({
+        title: 'Secret protegida',
+        description: 'Desbloqueie o secret antes de copiar.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     navigator.clipboard.writeText(secret.value)
-    toast({ title: 'Copiado!', description: 'Secret copiada para a área de transferência.' })
+
+    toast({
+      title: 'Copiado!',
+      description: 'Secret copiada para a área de transferência.',
+    })
+
     logAudit({
       action: 'Cópia',
       secretName: secret.name,
@@ -102,6 +116,15 @@ export default function Secrets() {
   }
 
   const openEditModal = (secret: AppSecret) => {
+    if (!revealed[secret.id]) {
+      toast({
+        title: 'Secret protegida',
+        description: 'Desbloqueie o secret antes de editar.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setEditingId(secret.id)
     setFormData({ name: secret.name, type: secret.type, value: secret.value })
     setIsModalOpen(true)
@@ -123,7 +146,13 @@ export default function Secrets() {
         type: formData.type,
         value: formData.value,
       })
-      logAudit({ action: 'Edição', secretName: formData.name, status: 'Sucesso' })
+
+      logAudit({
+        action: 'Edição',
+        secretName: formData.name,
+        status: 'Sucesso',
+      })
+
       toast({ title: 'Secret atualizada com sucesso' })
     } else {
       addSecret({
@@ -133,19 +162,45 @@ export default function Secrets() {
         value: formData.value,
         createdAt: new Date().toISOString(),
       })
-      logAudit({ action: 'Criação', secretName: formData.name, status: 'Sucesso' })
+
+      logAudit({
+        action: 'Criação',
+        secretName: formData.name,
+        status: 'Sucesso',
+      })
+
       toast({ title: 'Secret armazenada com segurança' })
     }
+
     setIsModalOpen(false)
   }
 
   const handleDelete = () => {
     if (secretToDelete) {
       deleteSecret(secretToDelete.id)
-      logAudit({ action: 'Exclusão', secretName: secretToDelete.name, status: 'Sucesso' })
+
+      logAudit({
+        action: 'Exclusão',
+        secretName: secretToDelete.name,
+        status: 'Sucesso',
+      })
+
       toast({ title: 'Secret deletada' })
       setSecretToDelete(null)
     }
+  }
+
+  const askDelete = (secret: AppSecret) => {
+    if (!revealed[secret.id]) {
+      toast({
+        title: 'Secret protegida',
+        description: 'Desbloqueie o secret antes de excluir.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setSecretToDelete(secret)
   }
 
   const maskValue = (val: string) => {
@@ -162,11 +217,17 @@ export default function Secrets() {
             <h2 className="text-3xl font-bold tracking-tight flex items-center gap-3">
               <KeyRound className="w-8 h-8 text-primary" /> Gerenciador de Secrets
             </h2>
+
             <p className="text-muted-foreground mt-1 flex items-center gap-1">
               <ShieldAlert className="w-4 h-4 text-amber-500" />
               Cofre criptografado para dados sensíveis.
             </p>
+
+            <p className="text-xs text-amber-500 mt-2">
+              🔒 Para usar ações como copiar, editar ou excluir, primeiro desbloqueie o secret.
+            </p>
           </div>
+
           <Button onClick={openAddModal} className="shadow-md">
             <Plus className="w-4 h-4 mr-2" /> Adicionar Secret
           </Button>
@@ -183,83 +244,116 @@ export default function Secrets() {
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
-              {secrets.map((secret) => (
-                <TableRow key={secret.id}>
-                  <TableCell className="font-medium">{secret.name}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{secret.type}</Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {new Intl.DateTimeFormat('pt-BR', {
-                      dateStyle: 'short',
-                      timeStyle: 'short',
-                    }).format(new Date(secret.createdAt))}
-                  </TableCell>
-                  <TableCell className="font-mono text-sm text-muted-foreground break-all">
-                    {revealed[secret.id] ? secret.value : maskValue(secret.value)}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1 sm:gap-2">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => handleCopy(secret)}>
-                            <Copy className="w-4 h-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Copiar</TooltipContent>
-                      </Tooltip>
+              {secrets.map((secret) => {
+                const isUnlocked = !!revealed[secret.id]
 
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => toggleReveal(secret)}
-                            className={
-                              revealed[secret.id]
-                                ? 'text-destructive hover:text-destructive/90 hover:bg-destructive/10'
-                                : ''
-                            }
-                          >
-                            {revealed[secret.id] ? (
-                              <EyeOff className="w-4 h-4" />
-                            ) : (
-                              <Eye className="w-4 h-4" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {revealed[secret.id] ? 'Ocultar' : 'Visualizar'}
-                        </TooltipContent>
-                      </Tooltip>
+                return (
+                  <TableRow key={secret.id}>
+                    <TableCell className="font-medium">{secret.name}</TableCell>
 
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon" onClick={() => openEditModal(secret)}>
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Editar</TooltipContent>
-                      </Tooltip>
+                    <TableCell>
+                      <Badge variant="outline">{secret.type}</Badge>
+                    </TableCell>
 
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => setSecretToDelete(secret)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Deletar</TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Intl.DateTimeFormat('pt-BR', {
+                        dateStyle: 'short',
+                        timeStyle: 'short',
+                      }).format(new Date(secret.createdAt))}
+                    </TableCell>
+
+                    <TableCell className="font-mono text-sm text-muted-foreground break-all">
+                      {isUnlocked ? secret.value : maskValue(secret.value)}
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1 sm:gap-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleCopy(secret)}
+                                disabled={!isUnlocked}
+                              >
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {isUnlocked ? 'Copiar' : 'Desbloqueie para copiar'}
+                          </TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => toggleReveal(secret)}
+                              className={
+                                isUnlocked
+                                  ? 'text-destructive hover:text-destructive/90 hover:bg-destructive/10'
+                                  : ''
+                              }
+                            >
+                              {isUnlocked ? (
+                                <EyeOff className="w-4 h-4" />
+                              ) : (
+                                <Eye className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {isUnlocked ? 'Ocultar' : 'Visualizar'}
+                          </TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditModal(secret)}
+                                disabled={!isUnlocked}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {isUnlocked ? 'Editar' : 'Desbloqueie para editar'}
+                          </TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => askDelete(secret)}
+                                disabled={!isUnlocked}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {isUnlocked ? 'Deletar' : 'Desbloqueie para excluir'}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+
               {secrets.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
@@ -280,6 +374,7 @@ export default function Secrets() {
               Armazene chaves de API, senhas ou tokens com segurança.
             </DialogDescription>
           </DialogHeader>
+
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <label className="text-sm font-medium">Nome identificador</label>
@@ -289,6 +384,7 @@ export default function Secrets() {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
             </div>
+
             <div className="grid gap-2">
               <label className="text-sm font-medium">Tipo</label>
               <Select
@@ -307,6 +403,7 @@ export default function Secrets() {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="grid gap-2">
               <label className="text-sm font-medium">Valor Secreto</label>
               <Textarea
@@ -317,6 +414,7 @@ export default function Secrets() {
               />
             </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsModalOpen(false)}>
               Cancelar
@@ -340,6 +438,7 @@ export default function Secrets() {
               {secretToDelete?.name}".
             </AlertDialogDescription>
           </AlertDialogHeader>
+
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
