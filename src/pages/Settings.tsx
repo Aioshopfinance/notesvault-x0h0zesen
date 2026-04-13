@@ -79,7 +79,7 @@ function TabButton({
         'flex items-center px-4 py-2.5 text-sm font-medium rounded-md transition-colors text-left',
         active
           ? 'bg-primary text-primary-foreground'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
       )}
     >
       {icon}
