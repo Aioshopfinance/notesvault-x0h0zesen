@@ -307,9 +307,7 @@ export default function Secrets() {
                               )}
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>
-                            {isUnlocked ? 'Ocultar' : 'Visualizar'}
-                          </TooltipContent>
+                          <TooltipContent>{isUnlocked ? 'Ocultar' : 'Visualizar'}</TooltipContent>
                         </Tooltip>
 
                         <Tooltip>
