@@ -278,7 +278,8 @@ export default function Secrets() {
             </p>
 
             <p className="text-xs text-amber-500 mt-2">
-              🔒 Para usar ações como copiar, editar ou excluir, primeiro desbloqueie o cadeado da linha.
+              🔒 Para usar ações como copiar, editar ou excluir, primeiro desbloqueie o cadeado da
+              linha.
             </p>
           </div>
 
