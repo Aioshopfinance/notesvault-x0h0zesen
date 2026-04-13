@@ -1,5 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
-import { KeyRound, Eye, EyeOff, Plus, ShieldAlert, Copy, Edit, Trash2 } from 'lucide-react'
+import {
+  KeyRound,
+  Eye,
+  EyeOff,
+  Plus,
+  ShieldAlert,
+  Copy,
+  Edit,
+  Trash2,
+  Lock,
+  Unlock,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -45,8 +56,12 @@ export default function Secrets() {
   const { secrets, addSecret, updateSecret, deleteSecret, logAudit } = useSecretsStore()
   const { toast } = useToast()
 
+  // controla se a linha está desbloqueada
+  const [unlocked, setUnlocked] = useState<Record<string, boolean>>({})
+  // controla se o valor está visível
   const [revealed, setRevealed] = useState<Record<string, boolean>>({})
-  const timersRef = useRef<Record<string, NodeJS.Timeout>>({})
+
+  const unlockTimersRef = useRef<Record<string, NodeJS.Timeout>>({})
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -55,41 +70,80 @@ export default function Secrets() {
 
   useEffect(() => {
     return () => {
-      Object.values(timersRef.current).forEach(clearTimeout)
+      Object.values(unlockTimersRef.current).forEach(clearTimeout)
     }
   }, [])
 
-  const toggleReveal = (secret: AppSecret) => {
-    const isNowRevealed = !revealed[secret.id]
+  const isSecretUnlocked = (secretId: string) => !!unlocked[secretId]
 
-    setRevealed((prev) => ({ ...prev, [secret.id]: isNowRevealed }))
+  const lockSecret = (secret: AppSecret) => {
+    if (unlockTimersRef.current[secret.id]) {
+      clearTimeout(unlockTimersRef.current[secret.id])
+    }
 
-    if (isNowRevealed) {
-      logAudit({
-        action: 'Visualização',
-        secretName: secret.name,
-        status: 'Sucesso',
-      })
+    setUnlocked((prev) => ({ ...prev, [secret.id]: false }))
+    setRevealed((prev) => ({ ...prev, [secret.id]: false }))
 
-      if (timersRef.current[secret.id]) {
-        clearTimeout(timersRef.current[secret.id])
-      }
+    logAudit({
+      action: 'Bloqueio',
+      secretName: secret.name,
+      status: 'Sucesso',
+    })
+  }
 
-      timersRef.current[secret.id] = setTimeout(() => {
-        setRevealed((prev) => ({ ...prev, [secret.id]: false }))
-      }, 5000)
+  const unlockSecret = (secret: AppSecret) => {
+    setUnlocked((prev) => ({ ...prev, [secret.id]: true }))
+
+    logAudit({
+      action: 'Desbloqueio',
+      secretName: secret.name,
+      status: 'Sucesso',
+    })
+
+    if (unlockTimersRef.current[secret.id]) {
+      clearTimeout(unlockTimersRef.current[secret.id])
+    }
+
+    // auto-bloqueio após 15 segundos
+    unlockTimersRef.current[secret.id] = setTimeout(() => {
+      setUnlocked((prev) => ({ ...prev, [secret.id]: false }))
+      setRevealed((prev) => ({ ...prev, [secret.id]: false }))
+    }, 15000)
+  }
+
+  const toggleLock = (secret: AppSecret) => {
+    if (isSecretUnlocked(secret.id)) {
+      lockSecret(secret)
     } else {
-      if (timersRef.current[secret.id]) {
-        clearTimeout(timersRef.current[secret.id])
-      }
+      unlockSecret(secret)
     }
   }
 
-  const handleCopy = (secret: AppSecret) => {
-    if (!revealed[secret.id]) {
+  const toggleReveal = (secret: AppSecret) => {
+    if (!isSecretUnlocked(secret.id)) {
       toast({
         title: 'Secret protegida',
-        description: 'Desbloqueie o secret antes de copiar.',
+        description: 'Desbloqueie o cadeado antes de visualizar o valor.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const isNowRevealed = !revealed[secret.id]
+    setRevealed((prev) => ({ ...prev, [secret.id]: isNowRevealed }))
+
+    logAudit({
+      action: isNowRevealed ? 'Visualização' : 'Ocultação',
+      secretName: secret.name,
+      status: 'Sucesso',
+    })
+  }
+
+  const handleCopy = (secret: AppSecret) => {
+    if (!isSecretUnlocked(secret.id)) {
+      toast({
+        title: 'Secret protegida',
+        description: 'Desbloqueie o cadeado antes de copiar.',
         variant: 'destructive',
       })
       return
@@ -116,10 +170,10 @@ export default function Secrets() {
   }
 
   const openEditModal = (secret: AppSecret) => {
-    if (!revealed[secret.id]) {
+    if (!isSecretUnlocked(secret.id)) {
       toast({
         title: 'Secret protegida',
-        description: 'Desbloqueie o secret antes de editar.',
+        description: 'Desbloqueie o cadeado antes de editar.',
         variant: 'destructive',
       })
       return
@@ -191,10 +245,10 @@ export default function Secrets() {
   }
 
   const askDelete = (secret: AppSecret) => {
-    if (!revealed[secret.id]) {
+    if (!isSecretUnlocked(secret.id)) {
       toast({
         title: 'Secret protegida',
-        description: 'Desbloqueie o secret antes de excluir.',
+        description: 'Desbloqueie o cadeado antes de excluir.',
         variant: 'destructive',
       })
       return
@@ -224,7 +278,7 @@ export default function Secrets() {
             </p>
 
             <p className="text-xs text-amber-500 mt-2">
-              🔒 Para usar ações como copiar, editar ou excluir, primeiro desbloqueie o secret.
+              🔒 Para usar ações como copiar, editar ou excluir, primeiro desbloqueie o cadeado da linha.
             </p>
           </div>
 
@@ -247,7 +301,8 @@ export default function Secrets() {
 
             <TableBody>
               {secrets.map((secret) => {
-                const isUnlocked = !!revealed[secret.id]
+                const isUnlocked = isSecretUnlocked(secret.id)
+                const isRevealed = !!revealed[secret.id]
 
                 return (
                   <TableRow key={secret.id}>
@@ -265,11 +320,35 @@ export default function Secrets() {
                     </TableCell>
 
                     <TableCell className="font-mono text-sm text-muted-foreground break-all">
-                      {isUnlocked ? secret.value : maskValue(secret.value)}
+                      {isUnlocked && isRevealed ? secret.value : maskValue(secret.value)}
                     </TableCell>
 
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1 sm:gap-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => toggleLock(secret)}
+                              className={
+                                isUnlocked
+                                  ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
+                                  : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+                              }
+                            >
+                              {isUnlocked ? (
+                                <Unlock className="w-4 h-4" />
+                              ) : (
+                                <Lock className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {isUnlocked ? 'Bloquear linha' : 'Desbloquear linha'}
+                          </TooltipContent>
+                        </Tooltip>
+
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <span>
@@ -290,22 +369,25 @@ export default function Secrets() {
 
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => toggleReveal(secret)}
-                              className={
-                                isUnlocked
-                                  ? 'text-destructive hover:text-destructive/90 hover:bg-destructive/10'
-                                  : ''
-                              }
-                            >
-                              {isUnlocked ? (
-                                <EyeOff className="w-4 h-4" />
-                              ) : (
-                                <Eye className="w-4 h-4" />
-                              )}
-                            </Button>
+                            <span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => toggleReveal(secret)}
+                                disabled={!isUnlocked}
+                                className={
+                                  isUnlocked && isRevealed
+                                    ? 'text-destructive hover:text-destructive/90 hover:bg-destructive/10'
+                                    : ''
+                                }
+                              >
+                                {isUnlocked && isRevealed ? (
+                                  <EyeOff className="w-4 h-4" />
+                                ) : (
+                                  <Eye className="w-4 h-4" />
+                                )}
+                              </Button>
+                            </span>
                           </TooltipTrigger>
                           <TooltipContent>{isUnlocked ? 'Ocultar' : 'Visualizar'}</TooltipContent>
                         </Tooltip>
