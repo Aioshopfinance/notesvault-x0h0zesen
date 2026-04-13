@@ -387,7 +387,8 @@ export default function Secrets() {
             </p>
 
             <p className="text-xs text-amber-500 mt-2">
-              🔒 Para usar ações como copiar, editar ou excluir, primeiro desbloqueie o cadeado da linha.
+              🔒 Para usar ações como copiar, editar ou excluir, primeiro desbloqueie o cadeado da
+              linha.
             </p>
           </div>
 
@@ -447,7 +448,11 @@ export default function Secrets() {
                                   : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
                               }
                             >
-                              {isUnlocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                              {isUnlocked ? (
+                                <Unlock className="w-4 h-4" />
+                              ) : (
+                                <Lock className="w-4 h-4" />
+                              )}
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
@@ -499,8 +504,8 @@ export default function Secrets() {
                             {!isUnlocked
                               ? 'Desbloqueie para visualizar'
                               : isRevealed
-                              ? 'Ocultar valor'
-                              : 'Visualizar valor'}
+                                ? 'Ocultar valor'
+                                : 'Visualizar valor'}
                           </TooltipContent>
                         </Tooltip>
 
