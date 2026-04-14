@@ -169,8 +169,7 @@ export default function RecordsTab() {
 
   useEffect(() => {
     if (statuses.length > 0 && !form.status_id) {
-      const defaultStatus =
-        statuses.find((s: any) => s.name === 'Pendente') || statuses[0]
+      const defaultStatus = statuses.find((s: any) => s.name === 'Pendente') || statuses[0]
 
       setForm((f) => ({ ...f, status_id: defaultStatus.id }))
     }
@@ -250,9 +249,7 @@ export default function RecordsTab() {
     setLocationFilter('')
   }
 
-  const visibleDataColumns = COLUMNS_DEF.filter((c) =>
-    visibleColumns.includes(c.id),
-  )
+  const visibleDataColumns = COLUMNS_DEF.filter((c) => visibleColumns.includes(c.id))
 
   const tableColSpan = visibleDataColumns.length + 1
 
