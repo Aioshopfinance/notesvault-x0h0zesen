@@ -21,7 +21,13 @@ import {
   TableFooter,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, Plus, Printer, FileDown, Columns } from 'lucide-react'
+import {
+  Loader2,
+  Plus,
+  Printer,
+  Columns,
+  Trash2,
+} from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -51,14 +57,75 @@ const COLUMNS_DEF = [
   { id: 'location', label: 'Local' },
   { id: 'status', label: 'Status' },
   { id: 'dt', label: 'Total Dia' },
+  { id: 'actions', label: 'Ações' },
 ]
 
-const EditableCell = ({ value, type, onBlur, disabled, min, step }: any) => {
-  const [val, setVal] = useState(value)
+const EditableCell = ({
+  value,
+  type,
+  onBlur,
+  disabled,
+  min,
+  step,
+}: any) => {
+  const [val, setVal] = useState(value ?? '')
 
   useEffect(() => {
-    setVal(value)
+    setVal(value ?? '')
   }, [value])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nextValue = e.target.value
+
+    if (type === 'number') {
+      // Mantém a digitação fluida e evita caracteres inválidos.
+      // Também evita comportamento estranho em campos numéricos.
+      const normalized = nextValue.replace(',', '.')
+
+      if (normalized === '') {
+        setVal('')
+        return
+      }
+
+      if (/^-?\d*\.?\d*$/.test(normalized)) {
+        setVal(normalized)
+      }
+
+      return
+    }
+
+    setVal(nextValue)
+  }
+
+  const handleBlur = () => {
+    if (disabled) return
+
+    const originalValue = value ?? ''
+
+    if (type === 'number') {
+      if (val === '' || val === null) {
+        setVal(originalValue)
+        return
+      }
+
+      const parsed = Number(val)
+
+      if (Number.isNaN(parsed)) {
+        setVal(originalValue)
+        return
+      }
+
+      if (String(parsed) !== String(originalValue) && parsed !== originalValue) {
+        onBlur(String(parsed))
+      }
+
+      return
+    }
+
+    if (val !== originalValue) {
+      onBlur(val)
+    }
+  }
 
   return (
     <Input
@@ -66,12 +133,10 @@ const EditableCell = ({ value, type, onBlur, disabled, min, step }: any) => {
       value={val}
       min={min}
       step={step}
-      onChange={(e) => setVal(e.target.value)}
-      onBlur={() => {
-        if (val !== value) onBlur(val)
-      }}
+      onChange={handleChange}
+      onBlur={handleBlur}
       disabled={disabled}
-      className="h-8 w-full min-w-[70px] px-2 py-1 text-sm border-transparent hover:border-input focus:border-input bg-transparent shadow-none"
+      className="h-8 w-full min-w-[70px] border-transparent bg-transparent px-2 py-1 text-sm shadow-none hover:border-input focus:border-input"
     />
   )
 }
@@ -90,16 +155,17 @@ export default function RecordsTab() {
     formatCurrency,
     addRecord,
     updateRecord,
+    deleteRecord,
   } = useTimesheetContext()
-  const [savingId, setSavingId] = useState<string | null>(null)
 
+  const [savingId, setSavingId] = useState<string | null>(null)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [clientFilter, setClientFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [locationFilter, setLocationFilter] = useState('')
-
   const [open, setOpen] = useState(false)
+
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
     start_time: '09:00',
@@ -119,25 +185,29 @@ export default function RecordsTab() {
 
   useEffect(() => {
     if (statuses.length > 0 && !form.status_id) {
-      const defaultStatus = statuses.find((s) => s.name === 'Pendente') || statuses[0]
+      const defaultStatus = statuses.find((s: any) => s.name === 'Pendente') || statuses[0]
       setForm((f) => ({ ...f, status_id: defaultStatus.id }))
     }
   }, [statuses, form.status_id])
 
   const uniqueClients = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.client).filter(Boolean))),
+    () => Array.from(new Set(rows.map((r: any) => r.client).filter(Boolean))),
     [rows],
   )
 
   const filteredRows = useMemo(
     () =>
-      rows.filter((r) => {
+      rows.filter((r: any) => {
         if (startDate && r.date < startDate) return false
         if (endDate && r.date > endDate) return false
         if (clientFilter !== 'all' && r.client !== clientFilter) return false
         if (statusFilter !== 'all' && r.status_id !== statusFilter) return false
-        if (locationFilter && !r.location?.toLowerCase().includes(locationFilter.toLowerCase()))
+        if (
+          locationFilter &&
+          !r.location?.toLowerCase().includes(locationFilter.toLowerCase())
+        ) {
           return false
+        }
         return true
       }),
     [rows, startDate, endDate, clientFilter, statusFilter, locationFilter],
@@ -145,16 +215,48 @@ export default function RecordsTab() {
 
   const handleUpdate = async (id: string, field: string, value: any) => {
     setSavingId(id)
-    await updateRecord(id, field, value)
-    setSavingId(null)
+    try {
+      await updateRecord(id, field, value)
+    } finally {
+      setSavingId(null)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    const confirmed = window.confirm(
+      'Deseja realmente excluir este registro de horas?',
+    )
+
+    if (!confirmed) return
+
+    setSavingId(id)
+    try {
+      await deleteRecord(id)
+    } finally {
+      setSavingId(null)
+    }
   }
 
   const handleSave = async () => {
     const payload = {
       ...form,
-      hourly_rate: form.hourly_rate / rate,
+      hourly_rate: rate ? form.hourly_rate / rate : form.hourly_rate,
     }
-    if (await addRecord(payload)) setOpen(false)
+
+    if (await addRecord(payload)) {
+      setOpen(false)
+      setForm({
+        date: new Date().toISOString().split('T')[0],
+        start_time: '09:00',
+        end_time: '18:00',
+        break_time: 1,
+        hourly_rate: rate ? 17 * rate : 17,
+        client: '',
+        location: '',
+        status_id:
+          statuses.find((s: any) => s.name === 'Pendente')?.id || statuses[0]?.id || '',
+      })
+    }
   }
 
   const clearFilters = () => {
@@ -174,9 +276,10 @@ export default function RecordsTab() {
         }
       `}</style>
 
-      <div className="hidden print:block mb-8">
-        <h1 className="text-2xl font-bold mb-2">Relatório de Banco de Horas</h1>
-        <div className="flex justify-between text-sm text-muted-foreground border-b pb-4">
+      <div className="mb-8 hidden print:block">
+        <h1 className="mb-2 text-2xl font-bold">Relatório de Banco de Horas</h1>
+
+        <div className="flex justify-between border-b pb-4 text-sm text-muted-foreground">
           <div>
             <p>
               <strong>Usuário:</strong> {user?.user_metadata?.full_name || user?.email}
@@ -184,13 +287,19 @@ export default function RecordsTab() {
             <p>
               <strong>Filtros:</strong>{' '}
               {startDate
-                ? `${new Date(startDate).toLocaleDateString('pt-BR')} até ${endDate ? new Date(endDate).toLocaleDateString('pt-BR') : 'Hoje'}`
+                ? `${new Date(startDate).toLocaleDateString('pt-BR')} até ${
+                    endDate
+                      ? new Date(endDate).toLocaleDateString('pt-BR')
+                      : 'Hoje'
+                  }`
                 : 'Todos os registros'}
             </p>
           </div>
+
           <div className="text-right">
             <p>
-              <strong>Data de Impressão:</strong> {new Date().toLocaleDateString('pt-BR')}
+              <strong>Data de Impressão:</strong>{' '}
+              {new Date().toLocaleDateString('pt-BR')}
             </p>
             <p>
               <strong>Total de Registros:</strong> {filteredRows.length}
@@ -199,15 +308,25 @@ export default function RecordsTab() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 print:hidden bg-muted/30 p-4 rounded-lg border">
+      <div className="grid grid-cols-1 gap-3 rounded-lg border bg-muted/30 p-4 print:hidden md:grid-cols-2 lg:grid-cols-6">
         <div className="space-y-1">
           <Label className="text-xs">Data Inicial</Label>
-          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          <Input
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
         </div>
+
         <div className="space-y-1">
           <Label className="text-xs">Data Final</Label>
-          <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          <Input
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
         </div>
+
         <div className="space-y-1">
           <Label className="text-xs">Cliente</Label>
           <Select value={clientFilter} onValueChange={setClientFilter}>
@@ -224,6 +343,7 @@ export default function RecordsTab() {
             </SelectContent>
           </Select>
         </div>
+
         <div className="space-y-1">
           <Label className="text-xs">Status</Label>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -232,7 +352,7 @@ export default function RecordsTab() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
-              {statuses.map((s) => (
+              {statuses.map((s: any) => (
                 <SelectItem key={s.id} value={s.id}>
                   {s.name}
                 </SelectItem>
@@ -240,6 +360,7 @@ export default function RecordsTab() {
             </SelectContent>
           </Select>
         </div>
+
         <div className="space-y-1">
           <Label className="text-xs">Local</Label>
           <Input
@@ -248,6 +369,7 @@ export default function RecordsTab() {
             onChange={(e) => setLocationFilter(e.target.value)}
           />
         </div>
+
         <div className="flex items-end gap-2">
           <Button variant="outline" className="w-full" onClick={clearFilters}>
             Limpar
@@ -255,18 +377,20 @@ export default function RecordsTab() {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center print:hidden gap-4">
-        <div className="text-sm text-muted-foreground font-medium">
+      <div className="flex flex-col items-start justify-between gap-4 print:hidden md:flex-row md:items-center">
+        <div className="text-sm font-medium text-muted-foreground">
           Mostrando {filteredRows.length} registros
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-          <div className="flex gap-2 w-full sm:w-auto">
+
+        <div className="flex w-full flex-col gap-2 md:w-auto sm:flex-row">
+          <div className="flex w-full gap-2 sm:w-auto">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2 flex-1 sm:flex-none">
-                  <Columns className="w-4 h-4" /> Colunas
+                <Button variant="outline" size="sm" className="flex-1 gap-2 sm:flex-none">
+                  <Columns className="h-4 w-4" /> Colunas
                 </Button>
               </DropdownMenuTrigger>
+
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuLabel>Alternar Colunas</DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -280,7 +404,9 @@ export default function RecordsTab() {
                   </DropdownMenuCheckboxItem>
                 ))}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={resetColumns}>Resetar Padrão</DropdownMenuItem>
+                <DropdownMenuItem onClick={resetColumns}>
+                  Resetar Padrão
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -288,34 +414,39 @@ export default function RecordsTab() {
               variant="outline"
               size="sm"
               onClick={printPage}
-              className="gap-2 flex-1 sm:flex-none"
+              className="flex-1 gap-2 sm:flex-none"
             >
-              <Printer className="w-4 h-4" /> Imprimir / PDF
+              <Printer className="h-4 w-4" /> Imprimir / PDF
             </Button>
           </div>
-          <Button size="sm" onClick={() => setOpen(true)} className="gap-2 w-full sm:w-auto">
-            <Plus className="w-4 h-4" /> Novo Registro
+
+          <Button size="sm" onClick={() => setOpen(true)} className="w-full gap-2 sm:w-auto">
+            <Plus className="h-4 w-4" /> Novo Registro
           </Button>
         </div>
       </div>
 
-      <div className="bg-card border rounded-xl shadow-sm overflow-hidden flex flex-col print:border-none print:shadow-none">
+      <div className="flex flex-col overflow-hidden rounded-xl border bg-card shadow-sm print:border-none print:shadow-none">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-muted/50">
               <TableRow>
                 {COLUMNS_DEF.filter((c) => visibleColumns.includes(c.id)).map((c) => (
-                  <TableHead key={c.id} className={c.id === 'dt' ? 'text-right' : ''}>
+                  <TableHead
+                    key={c.id}
+                    className={c.id === 'dt' ? 'text-right' : ''}
+                  >
                     {c.label}
                   </TableHead>
                 ))}
               </TableRow>
             </TableHeader>
+
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={visibleColumns.length} className="text-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground mb-4" />
+                  <TableCell colSpan={visibleColumns.length} className="py-12 text-center">
+                    <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-muted-foreground" />
                     <p>Carregando...</p>
                   </TableCell>
                 </TableRow>
@@ -323,16 +454,16 @@ export default function RecordsTab() {
                 <TableRow>
                   <TableCell
                     colSpan={visibleColumns.length}
-                    className="text-center py-12 text-muted-foreground"
+                    className="py-12 text-center text-muted-foreground"
                   >
                     Nenhum registro encontrado.
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredRows.map((r) => (
+                filteredRows.map((r: any) => (
                   <TableRow key={r.id}>
                     {visibleColumns.includes('date') && (
-                      <TableCell className="p-1 min-w-[130px]">
+                      <TableCell className="min-w-[130px] p-1">
                         <EditableCell
                           type="date"
                           value={r.date}
@@ -341,8 +472,9 @@ export default function RecordsTab() {
                         />
                       </TableCell>
                     )}
+
                     {visibleColumns.includes('start_time') && (
-                      <TableCell className="p-1 min-w-[100px]">
+                      <TableCell className="min-w-[100px] p-1">
                         <EditableCell
                           type="time"
                           value={r.start_time.slice(0, 5)}
@@ -351,8 +483,9 @@ export default function RecordsTab() {
                         />
                       </TableCell>
                     )}
+
                     {visibleColumns.includes('end_time') && (
-                      <TableCell className="p-1 min-w-[100px]">
+                      <TableCell className="min-w-[100px] p-1">
                         <EditableCell
                           type="time"
                           value={r.end_time.slice(0, 5)}
@@ -361,8 +494,9 @@ export default function RecordsTab() {
                         />
                       </TableCell>
                     )}
+
                     {visibleColumns.includes('break_time') && (
-                      <TableCell className="p-1 min-w-[90px]">
+                      <TableCell className="min-w-[90px] p-1">
                         <EditableCell
                           type="number"
                           step="0.5"
@@ -375,17 +509,19 @@ export default function RecordsTab() {
                         />
                       </TableCell>
                     )}
+
                     {visibleColumns.includes('wh') && (
-                      <TableCell className="font-medium min-w-[80px]">
+                      <TableCell className="min-w-[80px] font-medium">
                         {savingId === r.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
                         ) : (
                           `${r.wh.toFixed(2)}h`
                         )}
                       </TableCell>
                     )}
+
                     {visibleColumns.includes('hourly_rate') && (
-                      <TableCell className="p-1 min-w-[100px]">
+                      <TableCell className="min-w-[100px] p-1">
                         <EditableCell
                           type="number"
                           step="0.01"
@@ -398,8 +534,9 @@ export default function RecordsTab() {
                         />
                       </TableCell>
                     )}
+
                     {visibleColumns.includes('client') && (
-                      <TableCell className="p-1 min-w-[120px]">
+                      <TableCell className="min-w-[120px] p-1">
                         <EditableCell
                           type="text"
                           value={r.client || ''}
@@ -408,9 +545,13 @@ export default function RecordsTab() {
                         />
                       </TableCell>
                     )}
+
                     {visibleColumns.includes('location') && (
-                      <TableCell>{r.location || '-'}</TableCell>
+                      <TableCell className="min-w-[120px]">
+                        {r.location || '-'}
+                      </TableCell>
                     )}
+
                     {visibleColumns.includes('status') && (
                       <TableCell>
                         <DropdownMenu>
@@ -430,15 +571,16 @@ export default function RecordsTab() {
                               {r.status_obj?.name || 'Desconhecido'}
                             </Badge>
                           </DropdownMenuTrigger>
+
                           <DropdownMenuContent>
-                            {statuses.map((s) => (
+                            {statuses.map((s: any) => (
                               <DropdownMenuItem
                                 key={s.id}
                                 onClick={() => handleUpdate(r.id, 'status_id', s.id)}
                               >
                                 <div className="flex items-center gap-2">
                                   <div
-                                    className="w-2 h-2 rounded-full"
+                                    className="h-2 w-2 rounded-full"
                                     style={{ backgroundColor: s.color }}
                                   />
                                   {s.name}
@@ -449,45 +591,71 @@ export default function RecordsTab() {
                         </DropdownMenu>
                       </TableCell>
                     )}
+
                     {visibleColumns.includes('dt') && (
-                      <TableCell className="text-right font-medium text-green-600 dark:text-green-400 min-w-[100px]">
+                      <TableCell className="min-w-[100px] text-right font-medium text-green-600 dark:text-green-400">
                         {savingId === r.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin inline text-primary ml-2" />
+                          <Loader2 className="ml-2 inline h-4 w-4 animate-spin text-primary" />
                         ) : (
                           formatCurrency(r.dt)
                         )}
+                      </TableCell>
+                    )}
+
+                    {visibleColumns.includes('actions') && (
+                      <TableCell className="w-[70px] p-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(r.id)}
+                          disabled={savingId === r.id}
+                          title="Excluir registro"
+                        >
+                          {savingId === r.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                          )}
+                        </Button>
                       </TableCell>
                     )}
                   </TableRow>
                 ))
               )}
             </TableBody>
+
             {filteredRows.length > 0 && visibleColumns.length > 0 && (
               <TableFooter>
                 <TableRow>
-                  {visibleColumns.map((colId, i) => {
-                    if (colId === 'wh')
+                  {visibleColumns.map((colId: string, i: number) => {
+                    if (colId === 'wh') {
                       return (
                         <TableCell key={colId} className="font-bold">
-                          {filteredRows.reduce((a, b) => a + b.wh, 0).toFixed(2)}h
+                          {filteredRows.reduce((a: number, b: any) => a + b.wh, 0).toFixed(2)}h
                         </TableCell>
                       )
-                    if (colId === 'dt')
+                    }
+
+                    if (colId === 'dt') {
                       return (
                         <TableCell
                           key={colId}
-                          className="text-right font-bold text-lg text-primary"
+                          className="text-right text-lg font-bold text-primary"
                         >
-                          {formatCurrency(filteredRows.reduce((a, b) => a + b.dt, 0))}
+                          {formatCurrency(filteredRows.reduce((a: number, b: any) => a + b.dt, 0))}
                         </TableCell>
                       )
+                    }
 
                     let totalsLabelIndex = 0
-                    if (visibleColumns.indexOf('wh') > 0)
+
+                    if (visibleColumns.indexOf('wh') > 0) {
                       totalsLabelIndex = visibleColumns.indexOf('wh') - 1
-                    else if (visibleColumns.indexOf('dt') > 0)
+                    } else if (visibleColumns.indexOf('dt') > 0) {
                       totalsLabelIndex = visibleColumns.indexOf('dt') - 1
-                    else totalsLabelIndex = visibleColumns.length - 1
+                    } else {
+                      totalsLabelIndex = visibleColumns.length - 1
+                    }
 
                     if (i === totalsLabelIndex && colId !== 'wh' && colId !== 'dt') {
                       return (
@@ -496,6 +664,7 @@ export default function RecordsTab() {
                         </TableCell>
                       )
                     }
+
                     return <TableCell key={colId}></TableCell>
                   })}
                 </TableRow>
@@ -510,6 +679,7 @@ export default function RecordsTab() {
           <DialogHeader>
             <DialogTitle>Novo Registro</DialogTitle>
           </DialogHeader>
+
           <div className="grid grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
               <Label>Data</Label>
@@ -519,6 +689,7 @@ export default function RecordsTab() {
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
               />
             </div>
+
             <div className="space-y-2">
               <Label>Status</Label>
               <Select
@@ -529,11 +700,11 @@ export default function RecordsTab() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {statuses.map((s) => (
+                  {statuses.map((s: any) => (
                     <SelectItem key={s.id} value={s.id}>
                       <div className="flex items-center gap-2">
                         <div
-                          className="w-2 h-2 rounded-full"
+                          className="h-2 w-2 rounded-full"
                           style={{ backgroundColor: s.color }}
                         />
                         {s.name}
@@ -543,6 +714,7 @@ export default function RecordsTab() {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-2">
               <Label>Entrada</Label>
               <Input
@@ -551,6 +723,7 @@ export default function RecordsTab() {
                 onChange={(e) => setForm({ ...form, start_time: e.target.value })}
               />
             </div>
+
             <div className="space-y-2">
               <Label>Saída</Label>
               <Input
@@ -559,6 +732,7 @@ export default function RecordsTab() {
                 onChange={(e) => setForm({ ...form, end_time: e.target.value })}
               />
             </div>
+
             <div className="space-y-2">
               <Label>Intervalo (h)</Label>
               <Input
@@ -566,9 +740,15 @@ export default function RecordsTab() {
                 step="0.5"
                 min="0"
                 value={form.break_time}
-                onChange={(e) => setForm({ ...form, break_time: parseFloat(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    break_time: parseFloat(e.target.value) || 0,
+                  })
+                }
               />
             </div>
+
             <div className="space-y-2">
               <Label>Valor/Hora ({currency})</Label>
               <Input
@@ -576,10 +756,16 @@ export default function RecordsTab() {
                 min="0"
                 step="0.01"
                 value={form.hourly_rate}
-                onChange={(e) => setForm({ ...form, hourly_rate: parseFloat(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    hourly_rate: parseFloat(e.target.value) || 0,
+                  })
+                }
               />
             </div>
-            <div className="space-y-2 col-span-2">
+
+            <div className="col-span-2 space-y-2">
               <Label>Cliente</Label>
               <Input
                 placeholder="Ex: Acme"
@@ -587,7 +773,8 @@ export default function RecordsTab() {
                 onChange={(e) => setForm({ ...form, client: e.target.value })}
               />
             </div>
-            <div className="space-y-2 col-span-2">
+
+            <div className="col-span-2 space-y-2">
               <Label>Local</Label>
               <Input
                 placeholder="Ex: Home"
@@ -596,6 +783,7 @@ export default function RecordsTab() {
               />
             </div>
           </div>
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancelar
