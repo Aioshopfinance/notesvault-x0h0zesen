@@ -51,7 +51,6 @@ const COLUMNS_DEF = [
   { id: 'location', label: 'Local' },
   { id: 'status', label: 'Status' },
   { id: 'dt', label: 'Total Dia' },
-  { id: 'actions', label: 'Ações' },
 ]
 
 const EditableCell = ({ value, type, onBlur, disabled, min, step }: any) => {
@@ -65,8 +64,6 @@ const EditableCell = ({ value, type, onBlur, disabled, min, step }: any) => {
     const nextValue = e.target.value
 
     if (type === 'number') {
-      // Mantém a digitação fluida e evita caracteres inválidos.
-      // Também evita comportamento estranho em campos numéricos.
       const normalized = nextValue.replace(',', '.')
 
       if (normalized === '') {
@@ -172,7 +169,9 @@ export default function RecordsTab() {
 
   useEffect(() => {
     if (statuses.length > 0 && !form.status_id) {
-      const defaultStatus = statuses.find((s: any) => s.name === 'Pendente') || statuses[0]
+      const defaultStatus =
+        statuses.find((s: any) => s.name === 'Pendente') || statuses[0]
+
       setForm((f) => ({ ...f, status_id: defaultStatus.id }))
     }
   }, [statuses, form.status_id])
@@ -192,6 +191,7 @@ export default function RecordsTab() {
         if (locationFilter && !r.location?.toLowerCase().includes(locationFilter.toLowerCase())) {
           return false
         }
+
         return true
       }),
     [rows, startDate, endDate, clientFilter, statusFilter, locationFilter],
@@ -199,6 +199,7 @@ export default function RecordsTab() {
 
   const handleUpdate = async (id: string, field: string, value: any) => {
     setSavingId(id)
+
     try {
       await updateRecord(id, field, value)
     } finally {
@@ -212,6 +213,7 @@ export default function RecordsTab() {
     if (!confirmed) return
 
     setSavingId(id)
+
     try {
       await deleteRecord(id)
     } finally {
@@ -247,6 +249,12 @@ export default function RecordsTab() {
     setStatusFilter('all')
     setLocationFilter('')
   }
+
+  const visibleDataColumns = COLUMNS_DEF.filter((c) =>
+    visibleColumns.includes(c.id),
+  )
+
+  const tableColSpan = visibleDataColumns.length + 1
 
   return (
     <div className="space-y-4">
@@ -404,13 +412,14 @@ export default function RecordsTab() {
                     {c.label}
                   </TableHead>
                 ))}
+                <TableHead className="w-[70px] text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
 
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={visibleColumns.length} className="py-12 text-center">
+                  <TableCell colSpan={tableColSpan} className="py-12 text-center">
                     <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-muted-foreground" />
                     <p>Carregando...</p>
                   </TableCell>
@@ -418,7 +427,7 @@ export default function RecordsTab() {
               ) : filteredRows.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={visibleColumns.length}
+                    colSpan={tableColSpan}
                     className="py-12 text-center text-muted-foreground"
                   >
                     Nenhum registro encontrado.
@@ -565,32 +574,34 @@ export default function RecordsTab() {
                       </TableCell>
                     )}
 
-                    {visibleColumns.includes('actions') && (
-                      <TableCell className="w-[70px] p-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(r.id)}
-                          disabled={savingId === r.id}
-                          title="Excluir registro"
-                        >
-                          {savingId === r.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                          ) : (
-                            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                          )}
-                        </Button>
-                      </TableCell>
-                    )}
+                    <TableCell className="w-[70px] p-1 text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(r.id)}
+                        disabled={savingId === r.id}
+                        title="Excluir registro"
+                      >
+                        {savingId === r.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                        ) : (
+                          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                        )}
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
             </TableBody>
 
-            {filteredRows.length > 0 && visibleColumns.length > 0 && (
+            {filteredRows.length > 0 && visibleDataColumns.length > 0 && (
               <TableFooter>
                 <TableRow>
                   {visibleColumns.map((colId: string, i: number) => {
+                    if (!visibleDataColumns.find((col) => col.id === colId)) {
+                      return null
+                    }
+
                     if (colId === 'wh') {
                       return (
                         <TableCell key={colId} className="font-bold">
@@ -630,6 +641,7 @@ export default function RecordsTab() {
 
                     return <TableCell key={colId}></TableCell>
                   })}
+                  <TableCell></TableCell>
                 </TableRow>
               </TableFooter>
             )}
