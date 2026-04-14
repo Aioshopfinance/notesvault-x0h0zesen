@@ -1,26 +1,11 @@
-import {
-  Clock,
-  Settings as SettingsIcon,
-  Trash2,
-  List,
-  BarChart3,
-  FileText,
-} from 'lucide-react'
+import { Clock, Settings as SettingsIcon, Trash2, List, BarChart3, FileText } from 'lucide-react'
 import { useState } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import {
-  TimesheetProvider,
-  useTimesheetContext,
-} from '@/components/timesheet/TimesheetContext'
+import { TimesheetProvider, useTimesheetContext } from '@/components/timesheet/TimesheetContext'
 import RecordsTab from '@/components/timesheet/RecordsTab'
 import DashboardTab from '@/components/timesheet/DashboardTab'
 import ReportTab from '@/components/timesheet/ReportTab'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 
@@ -79,12 +64,7 @@ function StatusRow({ status }: { status: StatusItem }) {
         className="flex-1"
       />
 
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={handleDelete}
-        className="shrink-0"
-      >
+      <Button variant="ghost" size="icon" onClick={handleDelete} className="shrink-0">
         <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
       </Button>
     </div>
@@ -162,7 +142,6 @@ function TimesheetContent() {
             <h2 className="flex items-center gap-3 text-3xl font-bold tracking-tight">
               <Clock className="h-8 w-8 text-primary" />
               Banco de Horas
-
               <Button
                 variant="ghost"
                 size="icon"
@@ -228,10 +207,7 @@ function TimesheetContent() {
             <RecordsTab />
           </TabsContent>
 
-          <TabsContent
-            value="dashboard"
-            className="m-0 border-none p-0 outline-none print:hidden"
-          >
+          <TabsContent value="dashboard" className="m-0 border-none p-0 outline-none print:hidden">
             <DashboardTab />
           </TabsContent>
 
@@ -241,10 +217,7 @@ function TimesheetContent() {
         </Tabs>
       </div>
 
-      <ManageStatusModal
-        open={manageStatusOpen}
-        onOpenChange={setManageStatusOpen}
-      />
+      <ManageStatusModal open={manageStatusOpen} onOpenChange={setManageStatusOpen} />
     </div>
   )
 }

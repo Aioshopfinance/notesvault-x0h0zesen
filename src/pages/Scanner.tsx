@@ -118,15 +118,11 @@ export default function Scanner() {
       setResult(extractedText)
 
       const fileExt = file.name.split('.').pop() || 'jpg'
-      const safeFileName = file.name
-        .replace(/\.[^/.]+$/, '')
-        .replace(/[^a-zA-Z0-9-_]/g, '_')
+      const safeFileName = file.name.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9-_]/g, '_')
 
       const filePath = `${user.id}/${Date.now()}-${safeFileName}.${fileExt}`
 
-      const { error: uploadError } = await supabase.storage
-        .from('scans')
-        .upload(filePath, file)
+      const { error: uploadError } = await supabase.storage.from('scans').upload(filePath, file)
 
       if (uploadError) throw new Error(uploadError.message)
 
@@ -158,8 +154,7 @@ export default function Scanner() {
 
       toast({
         title: 'Erro',
-        description:
-          error instanceof Error ? error.message : 'Erro no processamento',
+        description: error instanceof Error ? error.message : 'Erro no processamento',
         variant: 'destructive',
       })
     } finally {
@@ -167,9 +162,7 @@ export default function Scanner() {
     }
   }
 
-  const handleImageUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
 
     if (!file) return
@@ -312,11 +305,7 @@ export default function Scanner() {
             <ImagePreview imageUrl={selectedImage} />
 
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <Button
-                onClick={handleCaptureClick}
-                disabled={scanning}
-                className="w-full sm:w-auto"
-              >
+              <Button onClick={handleCaptureClick} disabled={scanning} className="w-full sm:w-auto">
                 {scanning ? (
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                 ) : (
@@ -326,11 +315,7 @@ export default function Scanner() {
               </Button>
 
               {selectedImage && !scanning && (
-                <Button
-                  variant="outline"
-                  onClick={handleNewScan}
-                  className="w-full sm:w-auto"
-                >
+                <Button variant="outline" onClick={handleNewScan} className="w-full sm:w-auto">
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Limpar e Recomeçar
                 </Button>
@@ -345,8 +330,8 @@ export default function Scanner() {
 
             {!selectedImage && !scanning && (
               <div className="rounded-2xl border border-dashed p-4 text-sm text-muted-foreground">
-                Dica: após capturar um documento, você poderá copiar, editar,
-                salvar o texto e navegar direto para a lista de scans.
+                Dica: após capturar um documento, você poderá copiar, editar, salvar o texto e
+                navegar direto para a lista de scans.
               </div>
             )}
           </div>
@@ -371,11 +356,7 @@ export default function Scanner() {
                     Editar
                   </Button>
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleGoToMyScans}
-                  >
+                  <Button variant="outline" size="sm" onClick={handleGoToMyScans}>
                     <FolderOpen className="mr-2 h-4 w-4" />
                     Meus Scans
                   </Button>

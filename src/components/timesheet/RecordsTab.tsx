@@ -21,13 +21,7 @@ import {
   TableFooter,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import {
-  Loader2,
-  Plus,
-  Printer,
-  Columns,
-  Trash2,
-} from 'lucide-react'
+import { Loader2, Plus, Printer, Columns, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -60,14 +54,7 @@ const COLUMNS_DEF = [
   { id: 'actions', label: 'Ações' },
 ]
 
-const EditableCell = ({
-  value,
-  type,
-  onBlur,
-  disabled,
-  min,
-  step,
-}: any) => {
+const EditableCell = ({ value, type, onBlur, disabled, min, step }: any) => {
   const [val, setVal] = useState(value ?? '')
 
   useEffect(() => {
@@ -202,10 +189,7 @@ export default function RecordsTab() {
         if (endDate && r.date > endDate) return false
         if (clientFilter !== 'all' && r.client !== clientFilter) return false
         if (statusFilter !== 'all' && r.status_id !== statusFilter) return false
-        if (
-          locationFilter &&
-          !r.location?.toLowerCase().includes(locationFilter.toLowerCase())
-        ) {
+        if (locationFilter && !r.location?.toLowerCase().includes(locationFilter.toLowerCase())) {
           return false
         }
         return true
@@ -223,9 +207,7 @@ export default function RecordsTab() {
   }
 
   const handleDelete = async (id: string) => {
-    const confirmed = window.confirm(
-      'Deseja realmente excluir este registro de horas?',
-    )
+    const confirmed = window.confirm('Deseja realmente excluir este registro de horas?')
 
     if (!confirmed) return
 
@@ -253,8 +235,7 @@ export default function RecordsTab() {
         hourly_rate: rate ? 17 * rate : 17,
         client: '',
         location: '',
-        status_id:
-          statuses.find((s: any) => s.name === 'Pendente')?.id || statuses[0]?.id || '',
+        status_id: statuses.find((s: any) => s.name === 'Pendente')?.id || statuses[0]?.id || '',
       })
     }
   }
@@ -288,9 +269,7 @@ export default function RecordsTab() {
               <strong>Filtros:</strong>{' '}
               {startDate
                 ? `${new Date(startDate).toLocaleDateString('pt-BR')} até ${
-                    endDate
-                      ? new Date(endDate).toLocaleDateString('pt-BR')
-                      : 'Hoje'
+                    endDate ? new Date(endDate).toLocaleDateString('pt-BR') : 'Hoje'
                   }`
                 : 'Todos os registros'}
             </p>
@@ -298,8 +277,7 @@ export default function RecordsTab() {
 
           <div className="text-right">
             <p>
-              <strong>Data de Impressão:</strong>{' '}
-              {new Date().toLocaleDateString('pt-BR')}
+              <strong>Data de Impressão:</strong> {new Date().toLocaleDateString('pt-BR')}
             </p>
             <p>
               <strong>Total de Registros:</strong> {filteredRows.length}
@@ -311,20 +289,12 @@ export default function RecordsTab() {
       <div className="grid grid-cols-1 gap-3 rounded-lg border bg-muted/30 p-4 print:hidden md:grid-cols-2 lg:grid-cols-6">
         <div className="space-y-1">
           <Label className="text-xs">Data Inicial</Label>
-          <Input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-          />
+          <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
         </div>
 
         <div className="space-y-1">
           <Label className="text-xs">Data Final</Label>
-          <Input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-          />
+          <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
         </div>
 
         <div className="space-y-1">
@@ -404,9 +374,7 @@ export default function RecordsTab() {
                   </DropdownMenuCheckboxItem>
                 ))}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={resetColumns}>
-                  Resetar Padrão
-                </DropdownMenuItem>
+                <DropdownMenuItem onClick={resetColumns}>Resetar Padrão</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -432,10 +400,7 @@ export default function RecordsTab() {
             <TableHeader className="bg-muted/50">
               <TableRow>
                 {COLUMNS_DEF.filter((c) => visibleColumns.includes(c.id)).map((c) => (
-                  <TableHead
-                    key={c.id}
-                    className={c.id === 'dt' ? 'text-right' : ''}
-                  >
+                  <TableHead key={c.id} className={c.id === 'dt' ? 'text-right' : ''}>
                     {c.label}
                   </TableHead>
                 ))}
@@ -547,9 +512,7 @@ export default function RecordsTab() {
                     )}
 
                     {visibleColumns.includes('location') && (
-                      <TableCell className="min-w-[120px]">
-                        {r.location || '-'}
-                      </TableCell>
+                      <TableCell className="min-w-[120px]">{r.location || '-'}</TableCell>
                     )}
 
                     {visibleColumns.includes('status') && (
