@@ -50,14 +50,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { MasterPasswordDialog } from '@/components/MasterPasswordDialog'
 import useSecretsStore, { AppSecret } from '@/stores/useSecretsStore'
-import useNotesStore from '@/stores/useNotesStore'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 
 export default function Secrets() {
   const { secrets, addSecret, updateSecret, deleteSecret, logAudit } = useSecretsStore()
-  const { verifyMasterPassword } = useNotesStore()
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -76,8 +75,6 @@ export default function Secrets() {
 
   const [isUnlockDialogOpen, setIsUnlockDialogOpen] = useState(false)
   const [unlockingSecret, setUnlockingSecret] = useState<AppSecret | null>(null)
-  const [masterPasswordInput, setMasterPasswordInput] = useState('')
-  const [masterPasswordLoading, setMasterPasswordLoading] = useState(false)
 
   useEffect(() => {
     return () => {
@@ -129,11 +126,10 @@ export default function Secrets() {
 
   const openUnlockDialog = (secret: AppSecret) => {
     setUnlockingSecret(secret)
-    setMasterPasswordInput('')
     setIsUnlockDialogOpen(true)
   }
 
-  const handleConfirmUnlock = async () => {
+  const handleSuccessUnlock = () => {
     if (!user?.id) {
       toast({
         title: 'Usuário não autenticado',
@@ -145,60 +141,33 @@ export default function Secrets() {
 
     if (!unlockingSecret) return
 
-    if (!masterPasswordInput.trim()) {
-      toast({
-        title: 'Senha obrigatória',
-        description: 'Digite sua senha mestre para desbloquear.',
-        variant: 'destructive',
+    unlockSecret(unlockingSecret)
+    setIsUnlockDialogOpen(false)
+    setUnlockingSecret(null)
+
+    toast({
+      title: 'Secret desbloqueada',
+      description: 'Acesso liberado por 15 segundos.',
+    })
+  }
+
+  const handleFailUnlock = () => {
+    if (unlockingSecret) {
+      logAudit({
+        action: 'Tentativa de Desbloqueio',
+        secretName: unlockingSecret.name,
+        status: 'Falha',
       })
-      return
-    }
-
-    setMasterPasswordLoading(true)
-
-    try {
-      const isValid = await verifyMasterPassword(masterPasswordInput)
-
-      if (!isValid) {
-        logAudit({
-          action: 'Tentativa de Desbloqueio',
-          secretName: unlockingSecret.name,
-          status: 'Falha',
-        })
-
-        toast({
-          title: 'Senha mestre incorreta',
-          description: 'A senha digitada não confere ou não foi configurada.',
-          variant: 'destructive',
-        })
-        return
-      }
-
-      unlockSecret(unlockingSecret)
-      setIsUnlockDialogOpen(false)
-      setUnlockingSecret(null)
-      setMasterPasswordInput('')
-
-      toast({
-        title: 'Secret desbloqueada',
-        description: 'Acesso liberado por 15 segundos.',
-      })
-    } catch (error: any) {
-      toast({
-        title: 'Erro ao validar senha mestre',
-        description: error?.message || 'Não foi possível validar a senha mestre.',
-        variant: 'destructive',
-      })
-    } finally {
-      setMasterPasswordLoading(false)
     }
   }
 
-  const toggleLock = (secret: AppSecret) => {
-    if (isSecretUnlocked(secret.id)) {
-      lockSecret(secret)
-    } else {
+  const toggleLock = async (secret: AppSecret) => {
+    if (!isSecretUnlocked(secret.id)) {
+      // Agora força o fluxo de autenticação via modal
       openUnlockDialog(secret)
+    } else {
+      // Lógica para bloquear novamente
+      lockSecret(secret)
     }
   }
 
@@ -607,53 +576,17 @@ export default function Secrets() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isUnlockDialogOpen} onOpenChange={setIsUnlockDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Desbloquear Secret</DialogTitle>
-            <DialogDescription>
-              Digite sua senha mestre para liberar o acesso temporário a esta secret.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Senha Mestre</label>
-              <Input
-                type="password"
-                placeholder="Digite sua senha mestre"
-                value={masterPasswordInput}
-                onChange={(e) => setMasterPasswordInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    void handleConfirmUnlock()
-                  }
-                }}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsUnlockDialogOpen(false)
-                setUnlockingSecret(null)
-                setMasterPasswordInput('')
-              }}
-              disabled={masterPasswordLoading}
-            >
-              Cancelar
-            </Button>
-
-            <Button onClick={handleConfirmUnlock} disabled={masterPasswordLoading}>
-              {masterPasswordLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Desbloquear
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <MasterPasswordDialog
+        open={isUnlockDialogOpen}
+        onClose={() => {
+          setIsUnlockDialogOpen(false)
+          setUnlockingSecret(null)
+        }}
+        onSuccess={handleSuccessUnlock}
+        onFail={handleFailUnlock}
+        title="Desbloquear Secret"
+        description="Digite sua senha mestre para liberar o acesso temporário a esta secret."
+      />
 
       <AlertDialog
         open={!!secretToDelete}

@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import useNotesStore from '@/stores/useNotesStore'
 import { useToast } from '@/hooks/use-toast'
 import { NoteTagsPopover } from './NoteTagsPopover'
+import { MasterPasswordDialog } from './MasterPasswordDialog'
 
 export function NoteEditor() {
   const {
@@ -31,7 +32,6 @@ export function NoteEditor() {
     unlockedNotes,
     setUnlockedNote,
     lockNote,
-    verifyMasterPassword,
   } = useNotesStore()
   const { toast } = useToast()
 
@@ -40,8 +40,6 @@ export function NoteEditor() {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [isLockSettingsOpen, setIsLockSettingsOpen] = useState(false)
-  const [unlockPassword, setUnlockPassword] = useState('')
-  const [isVerifying, setIsVerifying] = useState(false)
 
   useEffect(() => {
     if (activeNote) {
@@ -84,22 +82,6 @@ export function NoteEditor() {
     setIsLockSettingsOpen(false)
   }
 
-  const handleUnlock = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!activeNote) return
-    setIsVerifying(true)
-    const isValid = await verifyMasterPassword(unlockPassword)
-    setIsVerifying(false)
-
-    if (isValid) {
-      setUnlockedNote(activeNote.id)
-      setUnlockPassword('')
-      toast({ title: 'Nota desbloqueada' })
-    } else {
-      toast({ title: 'Senha incorreta', variant: 'destructive' })
-    }
-  }
-
   if (!activeNote) {
     return (
       <div className="hidden lg:flex flex-1 items-center justify-center bg-background text-muted-foreground">
@@ -118,36 +100,26 @@ export function NoteEditor() {
   if (isLockedAndRequiresPassword) {
     return (
       <>
-        {/* Mobile Backdrop */}
-        <div
-          className="fixed inset-0 bg-black/80 z-40 lg:hidden"
-          onClick={() => setSelectedNoteId(null)}
-        />
-        <div
-          className={cn(
-            'bg-background flex flex-col items-center justify-center p-6 text-center animate-fade-in',
-            selectedNoteId ? 'fixed inset-4 sm:inset-10 z-50 rounded-lg shadow-xl' : 'hidden',
-            'lg:static lg:flex lg:flex-1 lg:h-full lg:inset-auto lg:z-auto lg:rounded-none lg:shadow-none lg:w-auto w-full',
-          )}
-        >
-          <Lock className="w-16 h-16 text-muted-foreground/50 mb-6" />
-          <p className="text-lg font-medium mb-6 max-w-md">
-            Esta nota está Bloqueada. Digite a senha da conta para ver suas notas bloqueadas.
-          </p>
-          <form onSubmit={handleUnlock} className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
-            <Input
-              type="password"
-              placeholder="Senha Mestre"
-              value={unlockPassword}
-              onChange={(e) => setUnlockPassword(e.target.value)}
-              autoFocus
-              className="flex-1"
-            />
-            <Button type="submit" disabled={isVerifying}>
-              {isVerifying ? 'Aguarde...' : 'Desbloquear'}
-            </Button>
-          </form>
+        <div className="hidden lg:flex flex-1 items-center justify-center bg-background text-muted-foreground">
+          <div className="text-center animate-fade-in-up">
+            <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+              <Lock className="w-8 h-8 opacity-50" />
+            </div>
+            <p>Esta nota está protegida por senha.</p>
+          </div>
         </div>
+        <MasterPasswordDialog
+          open={true}
+          onClose={() => setSelectedNoteId(null)}
+          onSuccess={() => {
+            if (activeNote) {
+              setUnlockedNote(activeNote.id)
+              toast({ title: 'Nota desbloqueada' })
+            }
+          }}
+          title="Nota Bloqueada"
+          description="Digite a senha mestre para acessar o conteúdo desta nota."
+        />
       </>
     )
   }
