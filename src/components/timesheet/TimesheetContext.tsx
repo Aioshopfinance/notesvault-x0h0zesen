@@ -58,6 +58,7 @@ interface TimesheetContextData {
   formatCurrency: (valueInUSD: number) => string
   addRecord: (payload: any) => Promise<boolean>
   updateRecord: (id: string, field: string, value: any) => Promise<boolean>
+  deleteRecord: (id: string) => Promise<boolean>
   updateBulkRecords: (ids: string[], field: string, value: any) => Promise<boolean>
   markAsPaid: (client: string) => Promise<boolean>
   addStatus: (name: string, color: string) => Promise<boolean>
@@ -72,6 +73,7 @@ const Context = createContext<TimesheetContextData | null>(null)
 export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth()
   const { toast } = useToast()
+
   const [data, setData] = useState<any[]>([])
   const [statuses, setStatuses] = useState<TimeRecordStatus[]>([])
   const [visibleColumns, setVisibleColumns] = useState<string[]>(DEFAULT_COLUMNS)
@@ -88,9 +90,10 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
     (valueInUSD: number) => {
       const converted = valueInUSD * rate
       const locales = currency === 'BRL' ? 'pt-BR' : currency === 'EUR' ? 'de-DE' : 'en-US'
+
       return new Intl.NumberFormat(locales, {
         style: 'currency',
-        currency: currency,
+        currency,
       }).format(converted)
     },
     [currency, rate],
@@ -98,21 +101,27 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchStatuses = useCallback(async () => {
     if (!user) return
+
     const { data: st } = await supabase
       .from('time_record_statuses')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at')
-    if (st) setStatuses(st)
+
+    if (st) {
+      setStatuses(st)
+    }
   }, [user])
 
   const fetchPreferences = useCallback(async () => {
     if (!user) return
+
     const { data: pref } = await supabase
       .from('user_preferences')
       .select('timesheet_columns, currency')
       .eq('id', user.id)
       .single()
+
     if (
       pref?.timesheet_columns &&
       Array.isArray(pref.timesheet_columns) &&
@@ -120,6 +129,7 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
     ) {
       setVisibleColumns(pref.timesheet_columns)
     }
+
     if ((pref as any)?.currency) {
       setCurrency((pref as any).currency)
     }
@@ -128,7 +138,11 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
   const fetchRecords = useCallback(
     async (showLoading = true) => {
       if (!user) return
-      if (showLoading) setLoading(true)
+
+      if (showLoading) {
+        setLoading(true)
+      }
+
       const { data: records, error } = await supabase
         .from('timesheets')
         .select('*')
@@ -137,11 +151,18 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
         .order('start_time', { ascending: false })
 
       if (error) {
-        toast({ title: 'Erro ao carregar', description: error.message, variant: 'destructive' })
+        toast({
+          title: 'Erro ao carregar',
+          description: error.message,
+          variant: 'destructive',
+        })
       } else {
         setData(records || [])
       }
-      if (showLoading) setLoading(false)
+
+      if (showLoading) {
+        setLoading(false)
+      }
     },
     [user, toast],
   )
@@ -152,16 +173,23 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
     fetchRecords()
 
     if (!user) return
+
     const sub = supabase
       .channel('timesheets-changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'timesheets', filter: `user_id=eq.${user.id}` },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'timesheets',
+          filter: `user_id=eq.${user.id}`,
+        },
         () => {
           fetchRecords(false)
         },
       )
       .subscribe()
+
     return () => {
       supabase.removeChannel(sub)
     }
@@ -173,8 +201,10 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
         const [h, m] = (t || '00:00').split(':').map(Number)
         return h + (m || 0) / 60
       }
+
       let diff = getHours(r.end_time) - getHours(r.start_time)
       if (diff < 0) diff += 24
+
       const wh = Math.max(0, diff - Number(r.break_time || 0))
       const dt = wh * Number(r.hourly_rate || 0)
       const status_obj = statuses.find((s) => s.id === r.status_id)
@@ -193,17 +223,17 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
     const newCols = visibleColumns.includes(colId)
       ? visibleColumns.filter((c) => c !== colId)
       : [...visibleColumns, colId]
+
     setVisibleColumns(newCols)
+
     if (user) {
-      await supabase
-        .from('user_preferences')
-        .update({ timesheet_columns: newCols })
-        .eq('id', user.id)
+      await supabase.from('user_preferences').update({ timesheet_columns: newCols }).eq('id', user.id)
     }
   }
 
   const resetColumns = async () => {
     setVisibleColumns(DEFAULT_COLUMNS)
+
     if (user) {
       await supabase
         .from('user_preferences')
@@ -214,13 +244,18 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
 
   const addStatus = async (name: string, color: string) => {
     if (!user) return false
-    const { error } = await supabase
-      .from('time_record_statuses')
-      .insert({ user_id: user.id, name, color })
+
+    const { error } = await supabase.from('time_record_statuses').insert({
+      user_id: user.id,
+      name,
+      color,
+    })
+
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' })
       return false
     }
+
     toast({ title: 'Status criado!' })
     fetchStatuses()
     return true
@@ -231,16 +266,19 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
       .from('time_record_statuses')
       .update({ name, color })
       .eq('id', id)
+
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' })
       return false
     }
+
     fetchStatuses()
     return true
   }
 
   const deleteStatus = async (id: string) => {
     const inUse = rows.some((r) => r.status_id === id)
+
     if (inUse) {
       toast({
         title: 'Ação Bloqueada',
@@ -249,11 +287,14 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
       })
       return false
     }
+
     const { error } = await supabase.from('time_record_statuses').delete().eq('id', id)
+
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' })
       return false
     }
+
     toast({ title: 'Status removido' })
     fetchStatuses()
     return true
@@ -261,32 +302,77 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
 
   const addRecord = async (payload: any) => {
     if (!user) return false
-    const { error } = await supabase.from('timesheets').insert({ ...payload, user_id: user.id })
+
+    const { error } = await supabase.from('timesheets').insert({
+      ...payload,
+      user_id: user.id,
+    })
+
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' })
       return false
     }
+
     toast({ title: 'Registro adicionado com sucesso!' })
     fetchRecords(false)
     return true
   }
 
   const updateRecord = async (id: string, field: string, value: any) => {
+    if (!user) return false
+
     const { error } = await supabase
       .from('timesheets')
       .update({ [field]: value })
       .eq('id', id)
+      .eq('user_id', user.id)
+
     if (error) {
-      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' })
+      toast({
+        title: 'Erro ao atualizar',
+        description: error.message,
+        variant: 'destructive',
+      })
       return false
     }
+
     toast({ title: 'Sucesso', description: 'Registro atualizado.' })
+    fetchRecords(false)
+    return true
+  }
+
+  const deleteRecord = async (id: string) => {
+    if (!user) return false
+
+    const { error } = await supabase
+      .from('timesheets')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+
+    if (error) {
+      toast({
+        title: 'Erro ao excluir',
+        description: error.message,
+        variant: 'destructive',
+      })
+      return false
+    }
+
+    setData((prev) => prev.filter((record) => record.id !== id))
+
+    toast({
+      title: 'Registro excluído',
+      description: 'O registro de horas foi removido com sucesso.',
+    })
+
     fetchRecords(false)
     return true
   }
 
   const updateBulkRecords = async (ids: string[], field: string, value: any) => {
     if (!user) return false
+
     let actualField = field
     let actualValue = value
 
@@ -304,9 +390,14 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
       .from('timesheets')
       .update({ [actualField]: actualValue })
       .in('id', ids)
+      .eq('user_id', user.id)
 
     if (error) {
-      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' })
+      toast({
+        title: 'Erro ao atualizar',
+        description: error.message,
+        variant: 'destructive',
+      })
       return false
     }
 
@@ -322,8 +413,10 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
 
   const markAsPaid = async (client: string) => {
     if (!user) return false
+
     const pagoStatus = statuses.find((s) => s.name.toLowerCase() === 'pago')
     const pendenteStatus = statuses.find((s) => s.name.toLowerCase() === 'pendente')
+
     if (!pagoStatus || !pendenteStatus) return false
 
     const { error } = await supabase
@@ -337,6 +430,7 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' })
       return false
     }
+
     toast({ title: 'Sucesso', description: 'Registros atualizados para Pago.' })
     fetchRecords(false)
     return true
@@ -354,6 +448,7 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
         formatCurrency,
         addRecord,
         updateRecord,
+        deleteRecord,
         updateBulkRecords,
         markAsPaid,
         addStatus,
@@ -370,6 +465,8 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
 
 export const useTimesheetContext = () => {
   const ctx = useContext(Context)
-  if (!ctx) throw new Error('useTimesheetContext must be used within TimesheetProvider')
+  if (!ctx) {
+    throw new Error('useTimesheetContext must be used within TimesheetProvider')
+  }
   return ctx
 }
