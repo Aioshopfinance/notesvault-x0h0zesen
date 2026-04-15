@@ -150,6 +150,9 @@ export default function RecordsTab() {
   const [locationFilter, setLocationFilter] = useState('')
   const [open, setOpen] = useState(false)
 
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [recordToDelete, setRecordToDelete] = useState<any | null>(null)
+
   const [form, setForm] = useState({
     date: new Date().toISOString().split('T')[0],
     start_time: '09:00',
@@ -170,7 +173,6 @@ export default function RecordsTab() {
   useEffect(() => {
     if (statuses.length > 0 && !form.status_id) {
       const defaultStatus = statuses.find((s: any) => s.name === 'Pendente') || statuses[0]
-
       setForm((f) => ({ ...f, status_id: defaultStatus.id }))
     }
   }, [statuses, form.status_id])
@@ -190,7 +192,6 @@ export default function RecordsTab() {
         if (locationFilter && !r.location?.toLowerCase().includes(locationFilter.toLowerCase())) {
           return false
         }
-
         return true
       }),
     [rows, startDate, endDate, clientFilter, statusFilter, locationFilter],
@@ -198,7 +199,6 @@ export default function RecordsTab() {
 
   const handleUpdate = async (id: string, field: string, value: any) => {
     setSavingId(id)
-
     try {
       await updateRecord(id, field, value)
     } finally {
@@ -206,18 +206,32 @@ export default function RecordsTab() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    const confirmed = window.confirm('Deseja realmente excluir este registro de horas?')
+  const handleAskDelete = (record: any) => {
+    setRecordToDelete(record)
+    setDeleteDialogOpen(true)
+  }
 
-    if (!confirmed) return
+  const handleConfirmDelete = async () => {
+    if (!recordToDelete) return
 
-    setSavingId(id)
+    setSavingId(recordToDelete.id)
 
     try {
-      await deleteRecord(id)
+      const success = await deleteRecord(recordToDelete.id)
+
+      if (success) {
+        setDeleteDialogOpen(false)
+        setRecordToDelete(null)
+      }
     } finally {
       setSavingId(null)
     }
+  }
+
+  const handleCancelDelete = () => {
+    if (savingId) return
+    setDeleteDialogOpen(false)
+    setRecordToDelete(null)
   }
 
   const handleSave = async () => {
@@ -250,8 +264,23 @@ export default function RecordsTab() {
   }
 
   const visibleDataColumns = COLUMNS_DEF.filter((c) => visibleColumns.includes(c.id))
-
   const tableColSpan = visibleDataColumns.length + 1
+
+  const deleteDateLabel = recordToDelete?.date
+    ? new Date(`${recordToDelete.date}T00:00:00`).toLocaleDateString('pt-BR')
+    : '-'
+
+  const deleteStartLabel = recordToDelete?.start_time
+    ? String(recordToDelete.start_time).slice(0, 5)
+    : '-'
+
+  const deleteEndLabel = recordToDelete?.end_time
+    ? String(recordToDelete.end_time).slice(0, 5)
+    : '-'
+
+  const deleteClientLabel = recordToDelete?.client?.trim() || 'Sem cliente'
+  const deleteLocationLabel = recordToDelete?.location?.trim() || 'Sem local'
+  const deleteStatusLabel = recordToDelete?.status_obj?.name || recordToDelete?.status || 'Sem status'
 
   return (
     <div className="space-y-4">
@@ -264,7 +293,6 @@ export default function RecordsTab() {
 
       <div className="mb-8 hidden print:block">
         <h1 className="mb-2 text-2xl font-bold">Relatório de Banco de Horas</h1>
-
         <div className="flex justify-between border-b pb-4 text-sm text-muted-foreground">
           <div>
             <p>
@@ -279,7 +307,6 @@ export default function RecordsTab() {
                 : 'Todos os registros'}
             </p>
           </div>
-
           <div className="text-right">
             <p>
               <strong>Data de Impressão:</strong> {new Date().toLocaleDateString('pt-BR')}
@@ -365,7 +392,6 @@ export default function RecordsTab() {
                   <Columns className="h-4 w-4" /> Colunas
                 </Button>
               </DropdownMenuTrigger>
-
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuLabel>Alternar Colunas</DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -474,9 +500,7 @@ export default function RecordsTab() {
                           min="0"
                           value={r.break_time}
                           disabled={savingId === r.id}
-                          onBlur={(v: string) =>
-                            handleUpdate(r.id, 'break_time', parseFloat(v) || 0)
-                          }
+                          onBlur={(v: string) => handleUpdate(r.id, 'break_time', parseFloat(v) || 0)}
                         />
                       </TableCell>
                     )}
@@ -540,7 +564,6 @@ export default function RecordsTab() {
                               {r.status_obj?.name || 'Desconhecido'}
                             </Badge>
                           </DropdownMenuTrigger>
-
                           <DropdownMenuContent>
                             {statuses.map((s: any) => (
                               <DropdownMenuItem
@@ -575,7 +598,7 @@ export default function RecordsTab() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDelete(r.id)}
+                        onClick={() => handleAskDelete(r)}
                         disabled={savingId === r.id}
                         title="Excluir registro"
                       >
@@ -761,6 +784,63 @@ export default function RecordsTab() {
               Cancelar
             </Button>
             <Button onClick={handleSave}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={(nextOpen) => !savingId && setDeleteDialogOpen(nextOpen)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Excluir registro</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-sm">
+            <p className="text-muted-foreground">
+              Confirme a exclusão do registro abaixo:
+            </p>
+
+            <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <span className="font-medium">Data:</span> {deleteDateLabel}
+                </div>
+                <div>
+                  <span className="font-medium">Status:</span> {deleteStatusLabel}
+                </div>
+                <div>
+                  <span className="font-medium">Entrada:</span> {deleteStartLabel}
+                </div>
+                <div>
+                  <span className="font-medium">Saída:</span> {deleteEndLabel}
+                </div>
+                <div className="col-span-2">
+                  <span className="font-medium">Cliente:</span> {deleteClientLabel}
+                </div>
+                <div className="col-span-2">
+                  <span className="font-medium">Local:</span> {deleteLocationLabel}
+                </div>
+              </div>
+            </div>
+
+            <p className="text-sm text-destructive">
+              Esta ação não poderá ser desfeita.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancelDelete} disabled={!!savingId}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDelete} disabled={!!savingId}>
+              {savingId && recordToDelete?.id === savingId ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                'Excluir'
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
