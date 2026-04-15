@@ -280,7 +280,8 @@ export default function RecordsTab() {
 
   const deleteClientLabel = recordToDelete?.client?.trim() || 'Sem cliente'
   const deleteLocationLabel = recordToDelete?.location?.trim() || 'Sem local'
-  const deleteStatusLabel = recordToDelete?.status_obj?.name || recordToDelete?.status || 'Sem status'
+  const deleteStatusLabel =
+    recordToDelete?.status_obj?.name || recordToDelete?.status || 'Sem status'
 
   return (
     <div className="space-y-4">
@@ -500,7 +501,9 @@ export default function RecordsTab() {
                           min="0"
                           value={r.break_time}
                           disabled={savingId === r.id}
-                          onBlur={(v: string) => handleUpdate(r.id, 'break_time', parseFloat(v) || 0)}
+                          onBlur={(v: string) =>
+                            handleUpdate(r.id, 'break_time', parseFloat(v) || 0)
+                          }
                         />
                       </TableCell>
                     )}
@@ -788,16 +791,17 @@ export default function RecordsTab() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={deleteDialogOpen} onOpenChange={(nextOpen) => !savingId && setDeleteDialogOpen(nextOpen)}>
+      <Dialog
+        open={deleteDialogOpen}
+        onOpenChange={(nextOpen) => !savingId && setDeleteDialogOpen(nextOpen)}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Excluir registro</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-3 py-2 text-sm">
-            <p className="text-muted-foreground">
-              Confirme a exclusão do registro abaixo:
-            </p>
+            <p className="text-muted-foreground">Confirme a exclusão do registro abaixo:</p>
 
             <div className="rounded-lg border bg-muted/40 p-3 space-y-2">
               <div className="grid grid-cols-2 gap-2">
@@ -822,9 +826,7 @@ export default function RecordsTab() {
               </div>
             </div>
 
-            <p className="text-sm text-destructive">
-              Esta ação não poderá ser desfeita.
-            </p>
+            <p className="text-sm text-destructive">Esta ação não poderá ser desfeita.</p>
           </div>
 
           <DialogFooter>
