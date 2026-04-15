@@ -24,6 +24,7 @@ function StatusRow({ status }: { status: StatusItem }) {
   const { updateStatus, deleteStatus } = useTimesheetContext()
   const [name, setName] = useState(status.name)
   const [color, setColor] = useState(status.color)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const handleSave = async () => {
     const trimmedName = name.trim()
@@ -39,7 +40,18 @@ function StatusRow({ status }: { status: StatusItem }) {
   }
 
   const handleDelete = async () => {
-    await deleteStatus(status.id)
+    const confirmed = window.confirm(
+      `Deseja realmente excluir o status "${status.name}"?\n\nEssa ação remove apenas este status do sistema.`
+    )
+
+    if (!confirmed) return
+
+    try {
+      setIsDeleting(true)
+      await deleteStatus(status.id)
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   return (
@@ -50,6 +62,7 @@ function StatusRow({ status }: { status: StatusItem }) {
         onChange={(e) => setColor(e.target.value)}
         onBlur={handleSave}
         className="h-9 w-12 shrink-0 cursor-pointer p-1"
+        aria-label={`Cor do status ${status.name}`}
       />
 
       <Input
@@ -62,9 +75,18 @@ function StatusRow({ status }: { status: StatusItem }) {
           }
         }}
         className="flex-1"
+        aria-label={`Nome do status ${status.name}`}
       />
 
-      <Button variant="ghost" size="icon" onClick={handleDelete} className="shrink-0">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={handleDelete}
+        className="shrink-0"
+        disabled={isDeleting}
+        aria-label={`Excluir status ${status.name}`}
+        title={`Excluir status ${status.name}`}
+      >
         <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
       </Button>
     </div>
@@ -78,7 +100,6 @@ function ManageStatusModal({ open, onOpenChange }: ManageStatusModalProps) {
 
   const handleAdd = async () => {
     const trimmedName = newStatusName.trim()
-
     if (!trimmedName) return
 
     const success = await addStatus(trimmedName, newStatusColor)
@@ -109,6 +130,7 @@ function ManageStatusModal({ open, onOpenChange }: ManageStatusModalProps) {
               value={newStatusColor}
               onChange={(e) => setNewStatusColor(e.target.value)}
               className="h-9 w-12 shrink-0 cursor-pointer p-1"
+              aria-label="Cor do novo status"
             />
 
             <Input
@@ -121,6 +143,7 @@ function ManageStatusModal({ open, onOpenChange }: ManageStatusModalProps) {
                 }
               }}
               className="flex-1"
+              aria-label="Nome do novo status"
             />
 
             <Button onClick={handleAdd}>Adicionar</Button>
@@ -142,11 +165,14 @@ function TimesheetContent() {
             <h2 className="flex items-center gap-3 text-3xl font-bold tracking-tight">
               <Clock className="h-8 w-8 text-primary" />
               Banco de Horas
+
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setManageStatusOpen(true)}
                 className="text-muted-foreground hover:text-foreground"
+                aria-label="Gerenciar status"
+                title="Gerenciar status"
               >
                 <SettingsIcon className="h-5 w-5" />
               </Button>
