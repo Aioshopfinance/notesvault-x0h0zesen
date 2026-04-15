@@ -41,7 +41,7 @@ function StatusRow({ status }: { status: StatusItem }) {
 
   const handleDelete = async () => {
     const confirmed = window.confirm(
-      `Deseja realmente excluir o status "${status.name}"?\n\nEssa ação remove apenas este status do sistema.`
+      `Deseja realmente excluir o status "${status.name}"?\n\nEssa ação remove apenas este status do sistema.`,
     )
 
     if (!confirmed) return
@@ -165,7 +165,6 @@ function TimesheetContent() {
             <h2 className="flex items-center gap-3 text-3xl font-bold tracking-tight">
               <Clock className="h-8 w-8 text-primary" />
               Banco de Horas
-
               <Button
                 variant="ghost"
                 size="icon"

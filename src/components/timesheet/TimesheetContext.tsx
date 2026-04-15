@@ -227,7 +227,10 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
     setVisibleColumns(newCols)
 
     if (user) {
-      await supabase.from('user_preferences').update({ timesheet_columns: newCols }).eq('id', user.id)
+      await supabase
+        .from('user_preferences')
+        .update({ timesheet_columns: newCols })
+        .eq('id', user.id)
     }
   }
 
@@ -344,11 +347,7 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
   const deleteRecord = async (id: string) => {
     if (!user) return false
 
-    const { error } = await supabase
-      .from('timesheets')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id)
+    const { error } = await supabase.from('timesheets').delete().eq('id', id).eq('user_id', user.id)
 
     if (error) {
       toast({
