@@ -9,6 +9,7 @@ import MeusScans from '@/pages/MeusScans'
 import Secrets from '@/pages/Secrets'
 import Audit from '@/pages/Audit'
 import Timesheet from '@/pages/Timesheet'
+import DailyBank from '@/pages/DailyBank'
 import Settings from '@/pages/Settings'
 import NotFound from '@/pages/NotFound'
 import Auth from '@/pages/Auth'
@@ -23,7 +24,6 @@ const App = () => (
         <Sonner />
         <Routes>
           <Route path="/auth" element={<Auth />} />
-
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               <Route path="/" element={<Index />} />
@@ -32,10 +32,10 @@ const App = () => (
               <Route path="/secrets" element={<Secrets />} />
               <Route path="/audit" element={<Audit />} />
               <Route path="/timesheet" element={<Timesheet />} />
+              <Route path="/daily-bank" element={<DailyBank />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
           </Route>
-
           <Route path="*" element={<NotFound />} />
         </Routes>
       </TooltipProvider>
