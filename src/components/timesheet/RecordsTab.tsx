@@ -287,8 +287,48 @@ export default function RecordsTab() {
     <div className="space-y-4">
       <style>{`
         @media print {
-          @page { size: landscape; margin: 1cm; }
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          @page { margin: 0.5cm; }
+          body, html {
+            background-color: white !important;
+            color: black !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          * {
+            print-color-adjust: exact !important;
+            -webkit-print-color-adjust: exact !important;
+          }
+          .overflow-x-auto, .overflow-hidden {
+            overflow: visible !important;
+            width: 100% !important;
+          }
+          table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            display: table !important;
+          }
+          thead {
+            display: table-header-group !important;
+          }
+          tr {
+            page-break-inside: avoid !important;
+          }
+          th, td {
+            border: 1px solid black !important;
+            padding: 4px !important;
+            font-size: 10px !important;
+            background-color: white !important;
+            color: black !important;
+          }
+          td input, th input {
+            font-size: 10px !important;
+            color: black !important;
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            min-width: auto !important;
+          }
         }
       `}</style>
 
