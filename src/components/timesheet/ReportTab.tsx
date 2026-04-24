@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react'
 import { useTimesheetContext } from './TimesheetContext'
-import { printPage } from './utils'
 import {
   Table,
   TableBody,
@@ -68,6 +67,19 @@ function EditableCell({ value, onSave }: { value: string; onSave: (val: string) 
 export default function ReportTab() {
   const { rows, markAsPaid, updateBulkRecords, formatCurrency } = useTimesheetContext()
   const [clientFilter, setClientFilter] = useState('all')
+
+  const printBancoDeHoras = () => {
+    const originalTitle = document.title
+    document.title = 'NotesVault - Banco de Horas'
+
+    setTimeout(() => {
+      window.print()
+
+      setTimeout(() => {
+        document.title = originalTitle
+      }, 1000)
+    }, 100)
+  }
   const [statusFilter, setStatusFilter] = useState('all')
 
   const uniqueClients = useMemo(
@@ -194,10 +206,10 @@ export default function ReportTab() {
           </Select>
         </div>
         <div className="flex-1" />
-        <Button variant="outline" className="gap-2" onClick={printPage}>
+        <Button variant="outline" className="gap-2" onClick={printBancoDeHoras}>
           <Printer className="w-4 h-4" /> Imprimir
         </Button>
-        <Button variant="outline" className="gap-2" onClick={printPage}>
+        <Button variant="outline" className="gap-2" onClick={printBancoDeHoras}>
           <FileDown className="w-4 h-4" /> Exportar PDF
         </Button>
       </div>
