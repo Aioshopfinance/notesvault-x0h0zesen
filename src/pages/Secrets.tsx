@@ -56,7 +56,8 @@ import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 
 export default function Secrets() {
-  const { secrets, addSecret, updateSecret, deleteSecret, logAudit } = useSecretsStore()
+  const { secrets, loading, fetchSecrets, addSecret, updateSecret, deleteSecret, logAudit } =
+    useSecretsStore()
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -72,9 +73,16 @@ export default function Secrets() {
     value: '',
   })
   const [secretToDelete, setSecretToDelete] = useState<AppSecret | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const [isUnlockDialogOpen, setIsUnlockDialogOpen] = useState(false)
   const [unlockingSecret, setUnlockingSecret] = useState<AppSecret | null>(null)
+
+  useEffect(() => {
+    fetchSecrets()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -88,25 +96,14 @@ export default function Secrets() {
     if (unlockTimersRef.current[secret.id]) {
       clearTimeout(unlockTimersRef.current[secret.id])
     }
-
     setUnlocked((prev) => ({ ...prev, [secret.id]: false }))
     setRevealed((prev) => ({ ...prev, [secret.id]: false }))
-
-    logAudit({
-      action: 'Bloqueio',
-      secretName: secret.name,
-      status: 'Sucesso',
-    })
   }
 
-  const unlockSecret = (secret: AppSecret) => {
+  const unlockSecret = async (secret: AppSecret) => {
     setUnlocked((prev) => ({ ...prev, [secret.id]: true }))
 
-    logAudit({
-      action: 'Desbloqueio',
-      secretName: secret.name,
-      status: 'Sucesso',
-    })
+    await logAudit('view', secret.id)
 
     if (unlockTimersRef.current[secret.id]) {
       clearTimeout(unlockTimersRef.current[secret.id])
@@ -115,12 +112,6 @@ export default function Secrets() {
     unlockTimersRef.current[secret.id] = setTimeout(() => {
       setUnlocked((prev) => ({ ...prev, [secret.id]: false }))
       setRevealed((prev) => ({ ...prev, [secret.id]: false }))
-
-      logAudit({
-        action: 'Bloqueio Automático',
-        secretName: secret.name,
-        status: 'Sucesso',
-      })
     }, 15000)
   }
 
@@ -129,7 +120,7 @@ export default function Secrets() {
     setIsUnlockDialogOpen(true)
   }
 
-  const handleSuccessUnlock = () => {
+  const handleSuccessUnlock = async () => {
     if (!user?.id) {
       toast({
         title: 'Usuário não autenticado',
@@ -141,7 +132,7 @@ export default function Secrets() {
 
     if (!unlockingSecret) return
 
-    unlockSecret(unlockingSecret)
+    await unlockSecret(unlockingSecret)
     setIsUnlockDialogOpen(false)
     setUnlockingSecret(null)
 
@@ -152,26 +143,18 @@ export default function Secrets() {
   }
 
   const handleFailUnlock = () => {
-    if (unlockingSecret) {
-      logAudit({
-        action: 'Tentativa de Desbloqueio',
-        secretName: unlockingSecret.name,
-        status: 'Falha',
-      })
-    }
+    // Only handling failures inside the component gracefully
   }
 
   const toggleLock = async (secret: AppSecret) => {
     if (!isSecretUnlocked(secret.id)) {
-      // Agora força o fluxo de autenticação via modal
       openUnlockDialog(secret)
     } else {
-      // Lógica para bloquear novamente
       lockSecret(secret)
     }
   }
 
-  const toggleReveal = (secret: AppSecret) => {
+  const toggleReveal = async (secret: AppSecret) => {
     if (!isSecretUnlocked(secret.id)) {
       toast({
         title: 'Secret protegida',
@@ -185,11 +168,9 @@ export default function Secrets() {
 
     setRevealed((prev) => ({ ...prev, [secret.id]: isNowRevealed }))
 
-    logAudit({
-      action: isNowRevealed ? 'Visualização' : 'Ocultação',
-      secretName: secret.name,
-      status: 'Sucesso',
-    })
+    if (isNowRevealed) {
+      await logAudit('view', secret.id)
+    }
   }
 
   const handleCopy = async (secret: AppSecret) => {
@@ -204,17 +185,11 @@ export default function Secrets() {
 
     try {
       await navigator.clipboard.writeText(secret.value)
-
       toast({
         title: 'Copiado!',
         description: 'Secret copiada para a área de transferência.',
       })
-
-      logAudit({
-        action: 'Cópia',
-        secretName: secret.name,
-        status: 'Sucesso',
-      })
+      await logAudit('copy', secret.id)
     } catch {
       toast({
         title: 'Erro ao copiar',
@@ -245,7 +220,7 @@ export default function Secrets() {
     setIsModalOpen(true)
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name || !formData.value) {
       toast({
         title: 'Erro',
@@ -255,53 +230,56 @@ export default function Secrets() {
       return
     }
 
-    if (editingId) {
-      updateSecret(editingId, {
-        name: formData.name,
-        type: formData.type,
-        value: formData.value,
-      })
+    setIsSaving(true)
+    try {
+      if (editingId) {
+        await updateSecret(editingId, {
+          name: formData.name,
+          type: formData.type,
+          value: formData.value,
+        })
+        await logAudit('update', editingId)
+        toast({ title: 'Secret atualizada com sucesso' })
+      } else {
+        const newSecret = await addSecret({
+          name: formData.name,
+          type: formData.type,
+          value: formData.value,
+        })
+        await logAudit('create', newSecret.id)
+        toast({ title: 'Secret armazenada com segurança' })
+      }
 
-      logAudit({
-        action: 'Edição',
-        secretName: formData.name,
-        status: 'Sucesso',
+      setIsModalOpen(false)
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao salvar',
+        description: error.message || 'Falha ao processar a operação no servidor.',
+        variant: 'destructive',
       })
-
-      toast({ title: 'Secret atualizada com sucesso' })
-    } else {
-      addSecret({
-        id: Date.now().toString(),
-        name: formData.name,
-        type: formData.type,
-        value: formData.value,
-        createdAt: new Date().toISOString(),
-      })
-
-      logAudit({
-        action: 'Criação',
-        secretName: formData.name,
-        status: 'Sucesso',
-      })
-
-      toast({ title: 'Secret armazenada com segurança' })
+    } finally {
+      setIsSaving(false)
     }
-
-    setIsModalOpen(false)
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (secretToDelete) {
-      deleteSecret(secretToDelete.id)
+      setIsDeleting(true)
+      try {
+        await logAudit('delete', secretToDelete.id)
+        await deleteSecret(secretToDelete.id)
 
-      logAudit({
-        action: 'Exclusão',
-        secretName: secretToDelete.name,
-        status: 'Sucesso',
-      })
-
-      toast({ title: 'Secret deletada' })
-      setSecretToDelete(null)
+        toast({ title: 'Secret deletada' })
+        setSecretToDelete(null)
+      } catch (error: any) {
+        toast({
+          title: 'Erro ao deletar',
+          description: error.message || 'Falha ao remover a secret do servidor.',
+          variant: 'destructive',
+        })
+      } finally {
+        setIsDeleting(false)
+      }
     }
   }
 
@@ -364,152 +342,159 @@ export default function Secrets() {
             </TableHeader>
 
             <TableBody>
-              {secrets.map((secret) => {
-                const isUnlocked = isSecretUnlocked(secret.id)
-                const isRevealed = !!revealed[secret.id]
-
-                return (
-                  <TableRow key={secret.id}>
-                    <TableCell className="font-medium">{secret.name}</TableCell>
-
-                    <TableCell>
-                      <Badge variant="outline">{secret.type}</Badge>
-                    </TableCell>
-
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Intl.DateTimeFormat('pt-BR', {
-                        dateStyle: 'short',
-                        timeStyle: 'short',
-                      }).format(new Date(secret.createdAt))}
-                    </TableCell>
-
-                    <TableCell className="font-mono text-sm text-muted-foreground break-all">
-                      {isUnlocked && isRevealed ? secret.value : maskValue(secret.value)}
-                    </TableCell>
-
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1 sm:gap-2">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => toggleLock(secret)}
-                              className={
-                                isUnlocked
-                                  ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
-                                  : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
-                              }
-                            >
-                              {isUnlocked ? (
-                                <Unlock className="w-4 h-4" />
-                              ) : (
-                                <Lock className="w-4 h-4" />
-                              )}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {isUnlocked ? 'Bloquear linha' : 'Desbloquear linha'}
-                          </TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleCopy(secret)}
-                                disabled={!isUnlocked}
-                              >
-                                <Copy className="w-4 h-4" />
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {isUnlocked ? 'Copiar' : 'Desbloqueie para copiar'}
-                          </TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => toggleReveal(secret)}
-                                disabled={!isUnlocked}
-                                className={
-                                  isUnlocked && isRevealed
-                                    ? 'text-destructive hover:text-destructive/90 hover:bg-destructive/10'
-                                    : ''
-                                }
-                              >
-                                {isUnlocked && isRevealed ? (
-                                  <EyeOff className="w-4 h-4" />
-                                ) : (
-                                  <Eye className="w-4 h-4" />
-                                )}
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {!isUnlocked
-                              ? 'Desbloqueie para visualizar'
-                              : isRevealed
-                                ? 'Ocultar valor'
-                                : 'Visualizar valor'}
-                          </TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => openEditModal(secret)}
-                                disabled={!isUnlocked}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {isUnlocked ? 'Editar' : 'Desbloqueie para editar'}
-                          </TooltipContent>
-                        </Tooltip>
-
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => askDelete(secret)}
-                                disabled={!isUnlocked}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {isUnlocked ? 'Deletar' : 'Desbloqueie para excluir'}
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-
-              {secrets.length === 0 && (
+              {loading && secrets.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
+                    Carregando secrets...
+                  </TableCell>
+                </TableRow>
+              ) : secrets.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                     Nenhuma secret cadastrada.
                   </TableCell>
                 </TableRow>
+              ) : (
+                secrets.map((secret) => {
+                  const isUnlocked = isSecretUnlocked(secret.id)
+                  const isRevealed = !!revealed[secret.id]
+
+                  return (
+                    <TableRow key={secret.id}>
+                      <TableCell className="font-medium">{secret.name}</TableCell>
+
+                      <TableCell>
+                        <Badge variant="outline">{secret.type}</Badge>
+                      </TableCell>
+
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Intl.DateTimeFormat('pt-BR', {
+                          dateStyle: 'short',
+                          timeStyle: 'short',
+                        }).format(new Date(secret.createdAt))}
+                      </TableCell>
+
+                      <TableCell className="font-mono text-sm text-muted-foreground break-all">
+                        {isUnlocked && isRevealed ? secret.value : maskValue(secret.value)}
+                      </TableCell>
+
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1 sm:gap-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => toggleLock(secret)}
+                                className={
+                                  isUnlocked
+                                    ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
+                                    : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+                                }
+                              >
+                                {isUnlocked ? (
+                                  <Unlock className="w-4 h-4" />
+                                ) : (
+                                  <Lock className="w-4 h-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {isUnlocked ? 'Bloquear linha' : 'Desbloquear linha'}
+                            </TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleCopy(secret)}
+                                  disabled={!isUnlocked}
+                                >
+                                  <Copy className="w-4 h-4" />
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {isUnlocked ? 'Copiar' : 'Desbloqueie para copiar'}
+                            </TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => toggleReveal(secret)}
+                                  disabled={!isUnlocked}
+                                  className={
+                                    isUnlocked && isRevealed
+                                      ? 'text-destructive hover:text-destructive/90 hover:bg-destructive/10'
+                                      : ''
+                                  }
+                                >
+                                  {isUnlocked && isRevealed ? (
+                                    <EyeOff className="w-4 h-4" />
+                                  ) : (
+                                    <Eye className="w-4 h-4" />
+                                  )}
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {!isUnlocked
+                                ? 'Desbloqueie para visualizar'
+                                : isRevealed
+                                  ? 'Ocultar valor'
+                                  : 'Visualizar valor'}
+                            </TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openEditModal(secret)}
+                                  disabled={!isUnlocked}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {isUnlocked ? 'Editar' : 'Desbloqueie para editar'}
+                            </TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                  onClick={() => askDelete(secret)}
+                                  disabled={!isUnlocked}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {isUnlocked ? 'Deletar' : 'Desbloqueie para excluir'}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
               )}
             </TableBody>
           </Table>
@@ -532,6 +517,7 @@ export default function Secrets() {
                 placeholder="ex: Produção AWS"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                disabled={isSaving}
               />
             </div>
 
@@ -540,6 +526,7 @@ export default function Secrets() {
               <Select
                 value={formData.type}
                 onValueChange={(val) => setFormData({ ...formData, type: val })}
+                disabled={isSaving}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione um tipo" />
@@ -561,15 +548,17 @@ export default function Secrets() {
                 value={formData.value}
                 onChange={(e) => setFormData({ ...formData, value: e.target.value })}
                 className="font-mono min-h-[100px]"
+                disabled={isSaving}
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+            <Button variant="outline" onClick={() => setIsModalOpen(false)} disabled={isSaving}>
               Cancelar
             </Button>
-            <Button onClick={handleSave}>
+            <Button onClick={handleSave} disabled={isSaving}>
+              {isSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {editingId ? 'Salvar Alterações' : 'Salvar Secret'}
             </Button>
           </DialogFooter>
@@ -590,7 +579,7 @@ export default function Secrets() {
 
       <AlertDialog
         open={!!secretToDelete}
-        onOpenChange={(open) => !open && setSecretToDelete(null)}
+        onOpenChange={(open) => !open && !isDeleting && setSecretToDelete(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -602,11 +591,13 @@ export default function Secrets() {
           </AlertDialogHeader>
 
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
+              disabled={isDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
+              {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Deletar
             </AlertDialogAction>
           </AlertDialogFooter>

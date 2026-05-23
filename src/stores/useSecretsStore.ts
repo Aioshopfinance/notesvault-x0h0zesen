@@ -1,4 +1,5 @@
 import { useState, useEffect, Dispatch, SetStateAction } from 'react'
+import { supabase } from '@/lib/supabase/client'
 
 export type SecretType = 'API Key' | 'Email' | 'Login' | 'Token' | 'Outro' | string
 
@@ -18,53 +19,25 @@ export interface AuditLog {
   status: string
 }
 
-let globalState = {
-  secrets: [
-    {
-      id: '1',
-      name: 'AWS Production',
-      value: 'AKIAIOSFODNN7EXAMPLE',
-      type: 'API Key',
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-    },
-    {
-      id: '2',
-      name: 'Banco de Dados Main',
-      value: 'senhaSuperSegura123!@#',
-      type: 'Login',
-      createdAt: new Date(Date.now() - 172800000).toISOString(),
-    },
-    {
-      id: '3',
-      name: 'Chave SSH Github',
-      value: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ...',
-      type: 'Outro',
-      createdAt: new Date(Date.now() - 259200000).toISOString(),
-    },
-  ] as AppSecret[],
-  auditLogs: [
-    {
-      id: '1',
-      action: 'Criação',
-      secretName: 'AWS Production',
-      date: new Date(Date.now() - 86400000).toISOString(),
-      status: 'Sucesso',
-    },
-    {
-      id: '2',
-      action: 'Visualização',
-      secretName: 'Banco de Dados Main',
-      date: new Date().toISOString(),
-      status: 'Sucesso',
-    },
-  ] as AuditLog[],
+type GlobalState = {
+  secrets: AppSecret[]
+  auditLogs: AuditLog[]
+  loading: boolean
 }
 
-const listeners = new Set<Dispatch<SetStateAction<typeof globalState>>>()
+let globalState: GlobalState = {
+  secrets: [],
+  auditLogs: [],
+  loading: false,
+}
+
+const listeners = new Set<Dispatch<SetStateAction<GlobalState>>>()
 
 function notify() {
   listeners.forEach((listener) => listener(globalState))
 }
+
+let isFetching = false
 
 export default function useSecretsStore() {
   const [state, setState] = useState(globalState)
@@ -76,34 +49,161 @@ export default function useSecretsStore() {
     }
   }, [])
 
+  const fetchSecrets = async () => {
+    if (isFetching) return
+    isFetching = true
+
+    globalState = { ...globalState, loading: true }
+    notify()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      globalState = { ...globalState, loading: false }
+      notify()
+      isFetching = false
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('secrets')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+
+    if (!error && data) {
+      globalState = {
+        ...globalState,
+        secrets: data.map((s) => ({
+          id: s.id,
+          name: s.name,
+          value: s.value,
+          type: s.category,
+          createdAt: s.created_at,
+        })),
+        loading: false,
+      }
+    } else {
+      globalState = { ...globalState, loading: false }
+    }
+    notify()
+    isFetching = false
+  }
+
+  const addSecret = async (secretData: Omit<AppSecret, 'id' | 'createdAt'>) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) throw new Error('Usuário não autenticado.')
+
+    const { data, error } = await supabase
+      .from('secrets')
+      .insert({
+        user_id: user.id,
+        name: secretData.name,
+        value: secretData.value,
+        category: secretData.type,
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+
+    const newSecret: AppSecret = {
+      id: data.id,
+      name: data.name,
+      value: data.value,
+      type: data.category,
+      createdAt: data.created_at,
+    }
+
+    globalState = { ...globalState, secrets: [newSecret, ...globalState.secrets] }
+    notify()
+
+    return newSecret
+  }
+
+  const updateSecret = async (id: string, updatedData: Partial<AppSecret>) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) throw new Error('Usuário não autenticado.')
+
+    const payload: any = {}
+    if (updatedData.name) payload.name = updatedData.name
+    if (updatedData.value) payload.value = updatedData.value
+    if (updatedData.type) payload.category = updatedData.type
+
+    const { data, error } = await supabase
+      .from('secrets')
+      .update(payload)
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    globalState = {
+      ...globalState,
+      secrets: globalState.secrets.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              name: data.name,
+              value: data.value,
+              type: data.category,
+              createdAt: data.created_at,
+            }
+          : s,
+      ),
+    }
+    notify()
+    return data
+  }
+
+  const deleteSecret = async (id: string) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) throw new Error('Usuário não autenticado.')
+
+    const { error } = await supabase.from('secrets').delete().eq('id', id).eq('user_id', user.id)
+
+    if (error) throw error
+
+    globalState = {
+      ...globalState,
+      secrets: globalState.secrets.filter((s) => s.id !== id),
+    }
+    notify()
+  }
+
+  const logAudit = async (
+    action: 'view' | 'copy' | 'create' | 'update' | 'delete',
+    secretId: string,
+  ) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { error } = await supabase.from('secret_access_logs').insert({
+      user_id: user.id,
+      secret_id: secretId,
+      action,
+    })
+
+    if (error) console.error('Erro ao registrar log de auditoria', error)
+  }
+
   return {
     ...state,
-    addSecret: (secret: AppSecret) => {
-      globalState = { ...globalState, secrets: [secret, ...globalState.secrets] }
-      notify()
-    },
-    updateSecret: (id: string, updatedData: Partial<AppSecret>) => {
-      globalState = {
-        ...globalState,
-        secrets: globalState.secrets.map((s) => (s.id === id ? { ...s, ...updatedData } : s)),
-      }
-      notify()
-    },
-    deleteSecret: (id: string) => {
-      globalState = {
-        ...globalState,
-        secrets: globalState.secrets.filter((s) => s.id !== id),
-      }
-      notify()
-    },
-    logAudit: (log: Omit<AuditLog, 'id' | 'date'>) => {
-      const newLog = {
-        ...log,
-        id: Date.now().toString(),
-        date: new Date().toISOString(),
-      }
-      globalState = { ...globalState, auditLogs: [newLog, ...globalState.auditLogs] }
-      notify()
-    },
+    fetchSecrets,
+    addSecret,
+    updateSecret,
+    deleteSecret,
+    logAudit,
   }
 }
