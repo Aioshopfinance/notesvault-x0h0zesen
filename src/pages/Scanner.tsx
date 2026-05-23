@@ -209,11 +209,17 @@ export default function Scanner() {
     }
 
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error('Usuário não autenticado.')
+
       if (selectedScanId) {
         const { error } = await supabase
           .from('scans')
           .update({ extracted_text: editText })
           .eq('id', selectedScanId)
+          .eq('user_id', user.id)
 
         if (error) throw error
       }

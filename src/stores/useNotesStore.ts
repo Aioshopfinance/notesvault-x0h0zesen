@@ -32,6 +32,13 @@ function notify() {
   listeners.forEach((listener) => listener(globalState))
 }
 
+async function getUserId() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  return user?.id
+}
+
 let initialized = false
 
 export default function useNotesStore() {
@@ -132,6 +139,9 @@ export default function useNotesStore() {
     },
 
     updateTag: async (id: string, name: string, color: string) => {
+      const userId = await getUserId()
+      if (!userId) return
+
       globalState = {
         ...globalState,
         tags: globalState.tags.map((t) => (t.id === id ? { ...t, name, color } : t)),
@@ -141,10 +151,13 @@ export default function useNotesStore() {
         })),
       }
       notify()
-      await supabase.from('tags').update({ name, color }).eq('id', id)
+      await supabase.from('tags').update({ name, color }).eq('id', id).eq('user_id', userId)
     },
 
     deleteTag: async (id: string) => {
+      const userId = await getUserId()
+      if (!userId) return
+
       globalState = {
         ...globalState,
         tags: globalState.tags.filter((t) => t.id !== id),
@@ -155,7 +168,7 @@ export default function useNotesStore() {
         })),
       }
       notify()
-      await supabase.from('tags').delete().eq('id', id)
+      await supabase.from('tags').delete().eq('id', id).eq('user_id', userId)
     },
 
     setSelectedFolderId: (id: string | null) => {
@@ -187,12 +200,19 @@ export default function useNotesStore() {
     },
 
     lockNote: async (id: string, isLocked: boolean) => {
+      const userId = await getUserId()
+      if (!userId) return
+
       globalState = {
         ...globalState,
         notes: globalState.notes.map((n) => (n.id === id ? { ...n, isLocked } : n)),
       }
       notify()
-      await supabase.from('notes').update({ is_locked: isLocked }).eq('id', id)
+      await supabase
+        .from('notes')
+        .update({ is_locked: isLocked })
+        .eq('id', id)
+        .eq('user_id', userId)
     },
 
     verifyMasterPassword: async (password: string) => {
@@ -230,6 +250,9 @@ export default function useNotesStore() {
     },
 
     addTagToNote: async (noteId: string, tagId: string) => {
+      const userId = await getUserId()
+      if (!userId) return
+
       const note = globalState.notes.find((n) => n.id === noteId)
       const tag = globalState.tags.find((t) => t.id === tagId)
       if (note && tag && !note.tags?.some((t) => t.id === tagId)) {
@@ -244,6 +267,9 @@ export default function useNotesStore() {
     },
 
     removeTagFromNote: async (noteId: string, tagId: string) => {
+      const userId = await getUserId()
+      if (!userId) return
+
       const note = globalState.notes.find((n) => n.id === noteId)
       if (note) {
         const updatedTags = (note.tags || []).filter((t) => t.id !== tagId)
@@ -296,6 +322,9 @@ export default function useNotesStore() {
     },
 
     updateNote: async (id: string, updates: Partial<Note>) => {
+      const userId = await getUserId()
+      if (!userId) return
+
       const dbUpdates: any = {}
       if (updates.title !== undefined) dbUpdates.title = updates.title
       if (updates.content !== undefined) dbUpdates.content = updates.content
@@ -310,7 +339,7 @@ export default function useNotesStore() {
         ),
       }
       notify()
-      await supabase.from('notes').update(dbUpdates).eq('id', id)
+      await supabase.from('notes').update(dbUpdates).eq('id', id).eq('user_id', userId)
     },
 
     addFolder: async (folder: Omit<Folder, 'id'>) => {
@@ -344,6 +373,9 @@ export default function useNotesStore() {
     },
 
     togglePin: async (id: string) => {
+      const userId = await getUserId()
+      if (!userId) return
+
       const note = globalState.notes.find((n) => n.id === id)
       if (note) {
         const newIsPinned = !note.isPinned
@@ -359,6 +391,7 @@ export default function useNotesStore() {
             pinned_at: newIsPinned ? new Date().toISOString() : null,
           })
           .eq('id', id)
+          .eq('user_id', userId)
       }
     },
   }

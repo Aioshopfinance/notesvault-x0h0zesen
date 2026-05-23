@@ -265,10 +265,13 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const updateStatus = async (id: string, name: string, color: string) => {
+    if (!user) return false
+
     const { error } = await supabase
       .from('time_record_statuses')
       .update({ name, color })
       .eq('id', id)
+      .eq('user_id', user.id)
 
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' })
@@ -280,6 +283,8 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
   }
 
   const deleteStatus = async (id: string) => {
+    if (!user) return false
+
     const inUse = rows.some((r) => r.status_id === id)
 
     if (inUse) {
@@ -291,7 +296,11 @@ export const TimesheetProvider = ({ children }: { children: ReactNode }) => {
       return false
     }
 
-    const { error } = await supabase.from('time_record_statuses').delete().eq('id', id)
+    const { error } = await supabase
+      .from('time_record_statuses')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
 
     if (error) {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' })

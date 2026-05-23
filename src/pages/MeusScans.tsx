@@ -106,6 +106,11 @@ export default function MeusScans() {
   const handleDelete = async () => {
     if (!scanToDelete) return
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error('Usuário não autenticado')
+
       if (scanToDelete.image_url && scanToDelete.image_url.includes('/storage/v1/object/public/')) {
         const urlParts = scanToDelete.image_url.split('/storage/v1/object/public/')
         if (urlParts.length === 2) {
@@ -116,7 +121,11 @@ export default function MeusScans() {
         }
       }
 
-      const { error } = await supabase.from('scans').delete().eq('id', scanToDelete.id)
+      const { error } = await supabase
+        .from('scans')
+        .delete()
+        .eq('id', scanToDelete.id)
+        .eq('user_id', user.id)
       if (error) throw error
 
       setScans((prev) => prev.filter((s) => s.id !== scanToDelete.id))
@@ -137,10 +146,16 @@ export default function MeusScans() {
     }
 
     try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) throw new Error('Usuário não autenticado')
+
       const { error } = await supabase
         .from('scans')
         .update({ display_name: newName.trim() })
         .eq('id', scanToRename.id)
+        .eq('user_id', user.id)
 
       if (error) throw error
 

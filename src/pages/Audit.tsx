@@ -61,6 +61,13 @@ export default function Audit() {
 
   const fetchLogs = useCallback(
     async (showLoader = true) => {
+      if (!user) {
+        setLogs([])
+        setTotalCount(0)
+        if (showLoader) setLoading(false)
+        return
+      }
+
       if (showLoader) setLoading(true)
       const from = (page - 1) * itemsPerPage
       let query: any = supabase
@@ -68,6 +75,7 @@ export default function Audit() {
         .select(`id, action, timestamp, ip_address, user_agent, details, secrets!inner(name)`, {
           count: 'exact',
         })
+        .eq('user_id', user.id)
         .order('timestamp', { ascending: false })
         .range(from, from + itemsPerPage - 1)
 
@@ -85,7 +93,7 @@ export default function Audit() {
       }
       if (showLoader) setLoading(false)
     },
-    [page, action, startDate, endDate, search],
+    [user, page, action, startDate, endDate, search],
   )
 
   useEffect(() => {

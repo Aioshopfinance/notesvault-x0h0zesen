@@ -21,9 +21,20 @@ export default function DailyBank() {
   async function fetchRecords() {
     setLoading(true)
 
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    if (!user) {
+      setRecords([])
+      setLoading(false)
+      return
+    }
+
     const { data, error } = await supabase
       .from('daily_records')
       .select('*')
+      .eq('user_id', user.id)
       .order('work_date', { ascending: false })
 
     if (error) {
