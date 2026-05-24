@@ -133,14 +133,6 @@ export default function Secrets() {
   const unlockSecret = async (secret: AppSecret) => {
     setUnlocked((prev) => ({ ...prev, [secret.id]: true }))
 
-    await logAudit('view', secret.id, {
-      secret_name: secret.name,
-      platform: secret.platform,
-      username: secret.username,
-      environment: secret.environment,
-      category: secret.type,
-    })
-
     if (unlockTimersRef.current[secret.id]) {
       clearTimeout(unlockTimersRef.current[secret.id])
     }
@@ -315,16 +307,9 @@ export default function Secrets() {
           recoveryPhrase: formData.recoveryPhrase,
           notes: formData.notes,
         })
-        await logAudit('update', editingId, {
-          secret_name: formData.name,
-          platform: formData.platform,
-          username: formData.username,
-          environment: formData.environment,
-          category: formData.type,
-        })
         toast({ title: 'Secret atualizada com sucesso' })
       } else {
-        const newSecret = await addSecret({
+        await addSecret({
           name: formData.name,
           type: formData.type,
           value: formData.value,
@@ -335,13 +320,6 @@ export default function Secrets() {
           passwordOrigin: formData.passwordOrigin,
           recoveryPhrase: formData.recoveryPhrase,
           notes: formData.notes,
-        })
-        await logAudit('create', newSecret.id, {
-          secret_name: newSecret.name,
-          platform: newSecret.platform,
-          username: newSecret.username,
-          environment: newSecret.environment,
-          category: newSecret.type,
         })
         toast({ title: 'Secret armazenada com segurança' })
       }
@@ -363,24 +341,13 @@ export default function Secrets() {
 
     setIsProcessingAction(true)
     try {
-      const details = {
-        secret_name: actionSecret.name,
-        platform: actionSecret.platform,
-        username: actionSecret.username,
-        environment: actionSecret.environment,
-        category: actionSecret.type,
-      }
-
       if (actionType === 'trash') {
-        await logAudit('moved_to_trash', actionSecret.id, details)
         await moveSecretToTrash(actionSecret.id)
         toast({ title: 'Secret movida para a lixeira.' })
       } else if (actionType === 'restore') {
-        await logAudit('restored_from_trash', actionSecret.id, details)
         await restoreSecret(actionSecret.id)
         toast({ title: 'Secret restaurada com sucesso.' })
       } else if (actionType === 'hardDelete') {
-        await logAudit('permanently_deleted', actionSecret.id, details)
         await permanentlyDeleteSecret(actionSecret.id)
         toast({ title: 'Secret excluída definitivamente.' })
       }
