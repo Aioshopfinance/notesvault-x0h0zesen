@@ -189,6 +189,13 @@ export default function useSecretsStore() {
     globalState = { ...globalState, secrets: [newSecret, ...globalState.secrets] }
     notify()
 
+    await logAudit('create', newSecret.id, {
+      secret_name: newSecret.name,
+      platform: newSecret.platform,
+      username: newSecret.username,
+      action_context: 'create',
+    })
+
     return newSecret
   }
 
@@ -222,12 +229,22 @@ export default function useSecretsStore() {
 
     if (error) throw error
 
+    const updatedSecret = mapSecret(data)
+
     globalState = {
       ...globalState,
-      secrets: globalState.secrets.map((s) => (s.id === id ? mapSecret(data) : s)),
+      secrets: globalState.secrets.map((s) => (s.id === id ? updatedSecret : s)),
     }
     notify()
-    return mapSecret(data)
+
+    await logAudit('update', id, {
+      secret_name: updatedSecret.name,
+      platform: updatedSecret.platform,
+      username: updatedSecret.username,
+      action_context: 'update',
+    })
+
+    return updatedSecret
   }
 
   const moveSecretToTrash = async (id: string) => {
@@ -254,6 +271,14 @@ export default function useSecretsStore() {
       trashSecrets: [trashedSecret, ...globalState.trashSecrets],
     }
     notify()
+
+    await logAudit('moved_to_trash', trashedSecret.id, {
+      secret_name: trashedSecret.name,
+      platform: trashedSecret.platform,
+      username: trashedSecret.username,
+      action_context: 'soft_delete',
+    })
+
     return trashedSecret
   }
 
@@ -281,6 +306,14 @@ export default function useSecretsStore() {
       secrets: [restoredSecret, ...globalState.secrets],
     }
     notify()
+
+    await logAudit('restored_from_trash', restoredSecret.id, {
+      secret_name: restoredSecret.name,
+      platform: restoredSecret.platform,
+      username: restoredSecret.username,
+      action_context: 'restore',
+    })
+
     return restoredSecret
   }
 
@@ -289,6 +322,10 @@ export default function useSecretsStore() {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) throw new Error('Usuário não autenticado.')
+
+    const secretToDel =
+      globalState.trashSecrets.find((s) => s.id === id) ||
+      globalState.secrets.find((s) => s.id === id)
 
     const { error } = await supabase
       .from('secrets')
@@ -304,6 +341,15 @@ export default function useSecretsStore() {
       trashSecrets: globalState.trashSecrets.filter((s) => s.id !== id),
     }
     notify()
+
+    if (secretToDel) {
+      await logAudit('permanently_deleted', null, {
+        secret_name: secretToDel.name,
+        platform: secretToDel.platform,
+        username: secretToDel.username,
+        action_context: 'permanent_delete',
+      })
+    }
   }
 
   const logAudit = async (
@@ -316,7 +362,7 @@ export default function useSecretsStore() {
       | 'moved_to_trash'
       | 'restored_from_trash'
       | 'permanently_deleted',
-    secretId: string,
+    secretId: string | null,
     details?: any,
   ) => {
     const {
@@ -324,11 +370,28 @@ export default function useSecretsStore() {
     } = await supabase.auth.getUser()
     if (!user) return
 
+    let finalDetails = details || {}
+
+    if (secretId && !finalDetails.secret_name) {
+      const secret =
+        globalState.secrets.find((s) => s.id === secretId) ||
+        globalState.trashSecrets.find((s) => s.id === secretId)
+      if (secret) {
+        finalDetails = {
+          ...finalDetails,
+          secret_name: secret.name,
+          platform: secret.platform,
+          username: secret.username,
+          action_context: action,
+        }
+      }
+    }
+
     const { error } = await supabase.from('secret_access_logs').insert({
       user_id: user.id,
       secret_id: secretId,
       action,
-      details,
+      details: finalDetails,
     })
 
     if (error) console.error('Erro ao registrar log de auditoria', error)

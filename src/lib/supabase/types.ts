@@ -287,7 +287,7 @@ export type Database = {
           details: Json | null
           id: string
           ip_address: string | null
-          secret_id: string
+          secret_id: string | null
           timestamp: string
           user_agent: string | null
           user_id: string
@@ -297,7 +297,7 @@ export type Database = {
           details?: Json | null
           id?: string
           ip_address?: string | null
-          secret_id: string
+          secret_id?: string | null
           timestamp?: string
           user_agent?: string | null
           user_id: string
@@ -307,7 +307,7 @@ export type Database = {
           details?: Json | null
           id?: string
           ip_address?: string | null
-          secret_id?: string
+          secret_id?: string | null
           timestamp?: string
           user_agent?: string | null
           user_id?: string
@@ -326,6 +326,8 @@ export type Database = {
         Row: {
           category: string
           created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
           environment: string | null
           id: string
           name: string
@@ -342,6 +344,8 @@ export type Database = {
         Insert: {
           category?: string
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           environment?: string | null
           id?: string
           name: string
@@ -358,6 +362,8 @@ export type Database = {
         Update: {
           category?: string
           created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
           environment?: string | null
           id?: string
           name?: string
@@ -747,7 +753,7 @@ export const Constants = {
 // Table: secret_access_logs
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)
-//   secret_id: uuid (not null)
+//   secret_id: uuid (nullable)
 //   action: text (not null)
 //   ip_address: text (nullable)
 //   user_agent: text (nullable)
@@ -768,6 +774,8 @@ export const Constants = {
 //   password_origin: text (nullable)
 //   recovery_phrase: text (nullable)
 //   notes: text (nullable)
+//   deleted_at: timestamp with time zone (nullable)
+//   deleted_by: uuid (nullable)
 // Table: tags
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)
@@ -843,9 +851,10 @@ export const Constants = {
 //   FOREIGN KEY scans_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: secret_access_logs
 //   PRIMARY KEY secret_access_logs_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY secret_access_logs_secret_id_fkey: FOREIGN KEY (secret_id) REFERENCES secrets(id) ON DELETE CASCADE
+//   FOREIGN KEY secret_access_logs_secret_id_fkey: FOREIGN KEY (secret_id) REFERENCES secrets(id) ON DELETE SET NULL
 //   FOREIGN KEY secret_access_logs_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: secrets
+//   FOREIGN KEY secrets_deleted_by_fkey: FOREIGN KEY (deleted_by) REFERENCES auth.users(id) ON DELETE SET NULL
 //   PRIMARY KEY secrets_pkey: PRIMARY KEY (id)
 //   FOREIGN KEY secrets_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
 // Table: tags

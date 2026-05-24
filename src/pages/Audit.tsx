@@ -38,9 +38,9 @@ const actionMap: Record<string, string> = {
   copy: 'Copiou',
   create: 'Criou',
   update: 'Atualizou',
-  delete: 'Excluiu (Antigo)',
-  moved_to_trash: 'Moveu para a Lixeira',
-  restored_from_trash: 'Restaurou da Lixeira',
+  delete: 'Excluiu',
+  moved_to_trash: 'Moveu para Lixeira',
+  restored_from_trash: 'Restaurou',
   permanently_deleted: 'Excluiu Definitivamente',
 }
 
@@ -75,7 +75,7 @@ export default function Audit() {
       const from = (page - 1) * itemsPerPage
       let query: any = supabase
         .from('secret_access_logs')
-        .select(`id, action, timestamp, ip_address, user_agent, details, secrets!inner(name)`, {
+        .select(`id, action, timestamp, ip_address, user_agent, details, secrets(name)`, {
           count: 'exact',
         })
         .eq('user_id', user.id)
@@ -85,7 +85,7 @@ export default function Audit() {
       if (action !== 'all') query = query.eq('action', action)
       if (startDate) query = query.gte('timestamp', `${startDate}T00:00:00Z`)
       if (endDate) query = query.lte('timestamp', `${endDate}T23:59:59Z`)
-      if (search) query = query.ilike('secrets.name', `%${search}%`)
+      if (search) query = query.ilike('details->>secret_name', `%${search}%`)
 
       const { data, error: err, count } = await query
       if (err) setError('Não foi possível carregar o log de auditoria.')
@@ -187,10 +187,10 @@ export default function Audit() {
               <SelectItem value="copy">Cópia</SelectItem>
               <SelectItem value="create">Criação</SelectItem>
               <SelectItem value="update">Atualização</SelectItem>
-              <SelectItem value="delete">Deleção (Antigo)</SelectItem>
-              <SelectItem value="moved_to_trash">Mover p/ Lixeira</SelectItem>
-              <SelectItem value="restored_from_trash">Restauração</SelectItem>
-              <SelectItem value="permanently_deleted">Deleção Definitiva</SelectItem>
+              <SelectItem value="delete">Excluiu</SelectItem>
+              <SelectItem value="moved_to_trash">Moveu para Lixeira</SelectItem>
+              <SelectItem value="restored_from_trash">Restaurou</SelectItem>
+              <SelectItem value="permanently_deleted">Excluiu Definitivamente</SelectItem>
             </SelectContent>
           </Select>
           <Input
@@ -247,7 +247,7 @@ export default function Audit() {
                         {actionMap[log.action] || log.action}
                       </TableCell>
                       <TableCell>
-                        {log.secrets?.name || log.details?.secret_name || 'Segredo removido'}
+                        {log.details?.secret_name || log.secrets?.name || 'Secret excluída'}
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge
@@ -315,9 +315,9 @@ export default function Audit() {
                   <div>
                     <span className="font-semibold text-muted-foreground">Secret Afetada:</span>{' '}
                     <br />
-                    {selectedLog.secrets?.name ||
-                      selectedLog.details?.secret_name ||
-                      'Segredo removido'}
+                    {selectedLog.details?.secret_name ||
+                      selectedLog.secrets?.name ||
+                      'Secret excluída'}
                   </div>
                   <div>
                     <span className="font-semibold text-muted-foreground">Endereço IP:</span> <br />
