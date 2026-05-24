@@ -17,6 +17,8 @@ export interface AppSecret {
   recoveryPhrase?: string | null
   notes?: string | null
   updatedAt?: string | null
+  deletedAt?: string | null
+  deletedBy?: string | null
 }
 
 export interface AuditLog {
@@ -29,14 +31,18 @@ export interface AuditLog {
 
 type GlobalState = {
   secrets: AppSecret[]
+  trashSecrets: AppSecret[]
   auditLogs: AuditLog[]
   loading: boolean
+  trashLoading: boolean
 }
 
 let globalState: GlobalState = {
   secrets: [],
+  trashSecrets: [],
   auditLogs: [],
   loading: false,
+  trashLoading: false,
 }
 
 const listeners = new Set<Dispatch<SetStateAction<GlobalState>>>()
@@ -46,6 +52,25 @@ function notify() {
 }
 
 let isFetching = false
+let isFetchingTrash = false
+
+const mapSecret = (s: any): AppSecret => ({
+  id: s.id,
+  name: s.name,
+  value: s.value,
+  type: s.category,
+  createdAt: s.created_at,
+  platform: s.platform,
+  url: s.url,
+  username: s.username,
+  environment: s.environment,
+  passwordOrigin: s.password_origin,
+  recoveryPhrase: s.recovery_phrase,
+  notes: s.notes,
+  updatedAt: s.updated_at,
+  deletedAt: s.deleted_at,
+  deletedBy: s.deleted_by,
+})
 
 export default function useSecretsStore() {
   const [state, setState] = useState(globalState)
@@ -78,26 +103,13 @@ export default function useSecretsStore() {
       .from('secrets')
       .select('*')
       .eq('user_id', user.id)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
 
     if (!error && data) {
       globalState = {
         ...globalState,
-        secrets: data.map((s: any) => ({
-          id: s.id,
-          name: s.name,
-          value: s.value,
-          type: s.category,
-          createdAt: s.created_at,
-          platform: s.platform,
-          url: s.url,
-          username: s.username,
-          environment: s.environment,
-          passwordOrigin: s.password_origin,
-          recoveryPhrase: s.recovery_phrase,
-          notes: s.notes,
-          updatedAt: s.updated_at,
-        })),
+        secrets: data.map(mapSecret),
         loading: false,
       }
     } else {
@@ -107,7 +119,46 @@ export default function useSecretsStore() {
     isFetching = false
   }
 
-  const addSecret = async (secretData: Omit<AppSecret, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const fetchTrashSecrets = async () => {
+    if (isFetchingTrash) return
+    isFetchingTrash = true
+
+    globalState = { ...globalState, trashLoading: true }
+    notify()
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      globalState = { ...globalState, trashLoading: false }
+      notify()
+      isFetchingTrash = false
+      return
+    }
+
+    const { data, error } = await supabase
+      .from('secrets')
+      .select('*')
+      .eq('user_id', user.id)
+      .not('deleted_at', 'is', null)
+      .order('deleted_at', { ascending: false })
+
+    if (!error && data) {
+      globalState = {
+        ...globalState,
+        trashSecrets: data.map(mapSecret),
+        trashLoading: false,
+      }
+    } else {
+      globalState = { ...globalState, trashLoading: false }
+    }
+    notify()
+    isFetchingTrash = false
+  }
+
+  const addSecret = async (
+    secretData: Omit<AppSecret, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt' | 'deletedBy'>,
+  ) => {
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -133,21 +184,7 @@ export default function useSecretsStore() {
 
     if (error) throw error
 
-    const newSecret: AppSecret = {
-      id: data.id,
-      name: data.name,
-      value: data.value,
-      type: data.category,
-      createdAt: data.created_at,
-      platform: data.platform,
-      url: data.url,
-      username: data.username,
-      environment: data.environment,
-      passwordOrigin: data.password_origin,
-      recoveryPhrase: data.recovery_phrase,
-      notes: data.notes,
-      updatedAt: data.updated_at,
-    }
+    const newSecret = mapSecret(data)
 
     globalState = { ...globalState, secrets: [newSecret, ...globalState.secrets] }
     notify()
@@ -187,49 +224,98 @@ export default function useSecretsStore() {
 
     globalState = {
       ...globalState,
-      secrets: globalState.secrets.map((s) =>
-        s.id === id
-          ? {
-              ...s,
-              name: data.name,
-              value: data.value,
-              type: data.category,
-              createdAt: data.created_at,
-              platform: data.platform,
-              url: data.url,
-              username: data.username,
-              environment: data.environment,
-              passwordOrigin: data.password_origin,
-              recoveryPhrase: data.recovery_phrase,
-              notes: data.notes,
-              updatedAt: data.updated_at,
-            }
-          : s,
-      ),
+      secrets: globalState.secrets.map((s) => (s.id === id ? mapSecret(data) : s)),
     }
     notify()
-    return data
+    return mapSecret(data)
   }
 
-  const deleteSecret = async (id: string) => {
+  const moveSecretToTrash = async (id: string) => {
     const {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) throw new Error('Usuário não autenticado.')
 
-    const { error } = await supabase.from('secrets').delete().eq('id', id).eq('user_id', user.id)
+    const { data, error } = await supabase
+      .from('secrets')
+      .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    const trashedSecret = mapSecret(data)
+
+    globalState = {
+      ...globalState,
+      secrets: globalState.secrets.filter((s) => s.id !== id),
+      trashSecrets: [trashedSecret, ...globalState.trashSecrets],
+    }
+    notify()
+    return trashedSecret
+  }
+
+  const restoreSecret = async (id: string) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) throw new Error('Usuário não autenticado.')
+
+    const { data, error } = await supabase
+      .from('secrets')
+      .update({ deleted_at: null, deleted_by: null })
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    const restoredSecret = mapSecret(data)
+
+    globalState = {
+      ...globalState,
+      trashSecrets: globalState.trashSecrets.filter((s) => s.id !== id),
+      secrets: [restoredSecret, ...globalState.secrets],
+    }
+    notify()
+    return restoredSecret
+  }
+
+  const permanentlyDeleteSecret = async (id: string) => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) throw new Error('Usuário não autenticado.')
+
+    const { error } = await supabase
+      .from('secrets')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .not('deleted_at', 'is', null)
 
     if (error) throw error
 
     globalState = {
       ...globalState,
-      secrets: globalState.secrets.filter((s) => s.id !== id),
+      trashSecrets: globalState.trashSecrets.filter((s) => s.id !== id),
     }
     notify()
   }
 
   const logAudit = async (
-    action: 'view' | 'copy' | 'create' | 'update' | 'delete',
+    action:
+      | 'view'
+      | 'copy'
+      | 'create'
+      | 'update'
+      | 'delete'
+      | 'moved_to_trash'
+      | 'restored_from_trash'
+      | 'permanently_deleted',
     secretId: string,
     details?: any,
   ) => {
@@ -251,9 +337,12 @@ export default function useSecretsStore() {
   return {
     ...state,
     fetchSecrets,
+    fetchTrashSecrets,
     addSecret,
     updateSecret,
-    deleteSecret,
+    moveSecretToTrash,
+    restoreSecret,
+    permanentlyDeleteSecret,
     logAudit,
   }
 }

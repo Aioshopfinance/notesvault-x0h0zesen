@@ -326,28 +326,49 @@ export type Database = {
         Row: {
           category: string
           created_at: string
+          environment: string | null
           id: string
           name: string
+          notes: string | null
+          password_origin: string | null
+          platform: string | null
+          recovery_phrase: string | null
           updated_at: string
+          url: string | null
           user_id: string
+          username: string | null
           value: string
         }
         Insert: {
           category?: string
           created_at?: string
+          environment?: string | null
           id?: string
           name: string
+          notes?: string | null
+          password_origin?: string | null
+          platform?: string | null
+          recovery_phrase?: string | null
           updated_at?: string
+          url?: string | null
           user_id: string
+          username?: string | null
           value: string
         }
         Update: {
           category?: string
           created_at?: string
+          environment?: string | null
           id?: string
           name?: string
+          notes?: string | null
+          password_origin?: string | null
+          platform?: string | null
+          recovery_phrase?: string | null
           updated_at?: string
+          url?: string | null
           user_id?: string
+          username?: string | null
           value?: string
         }
         Relationships: []
@@ -740,6 +761,13 @@ export const Constants = {
 //   category: text (not null, default: 'Outro'::text)
 //   created_at: timestamp with time zone (not null, default: now())
 //   updated_at: timestamp with time zone (not null, default: now())
+//   platform: text (nullable)
+//   url: text (nullable)
+//   username: text (nullable)
+//   environment: text (nullable)
+//   password_origin: text (nullable)
+//   recovery_phrase: text (nullable)
+//   notes: text (nullable)
 // Table: tags
 //   id: uuid (not null, default: gen_random_uuid())
 //   user_id: uuid (not null)

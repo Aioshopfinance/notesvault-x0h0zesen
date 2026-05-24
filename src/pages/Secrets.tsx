@@ -11,6 +11,8 @@ import {
   Lock,
   Unlock,
   Loader2,
+  RotateCcw,
+  ArchiveX,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -51,16 +53,32 @@ import {
 } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { MasterPasswordDialog } from '@/components/MasterPasswordDialog'
 import useSecretsStore, { AppSecret } from '@/stores/useSecretsStore'
 import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/hooks/use-auth'
 
 export default function Secrets() {
-  const { secrets, loading, fetchSecrets, addSecret, updateSecret, deleteSecret, logAudit } =
-    useSecretsStore()
+  const {
+    secrets,
+    trashSecrets,
+    loading,
+    trashLoading,
+    fetchSecrets,
+    fetchTrashSecrets,
+    addSecret,
+    updateSecret,
+    moveSecretToTrash,
+    restoreSecret,
+    permanentlyDeleteSecret,
+    logAudit,
+  } = useSecretsStore()
+
   const { toast } = useToast()
   const { user } = useAuth()
+
+  const [activeTab, setActiveTab] = useState('active')
 
   const [unlocked, setUnlocked] = useState<Record<string, boolean>>({})
   const [revealed, setRevealed] = useState<Record<string, boolean>>({})
@@ -80,15 +98,19 @@ export default function Secrets() {
     recoveryPhrase: '',
     notes: '',
   })
-  const [secretToDelete, setSecretToDelete] = useState<AppSecret | null>(null)
+
+  const [actionSecret, setActionSecret] = useState<AppSecret | null>(null)
+  const [actionType, setActionType] = useState<'trash' | 'restore' | 'hardDelete' | null>(null)
+
   const [isSaving, setIsSaving] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
+  const [isProcessingAction, setIsProcessingAction] = useState(false)
 
   const [isUnlockDialogOpen, setIsUnlockDialogOpen] = useState(false)
   const [unlockingSecret, setUnlockingSecret] = useState<AppSecret | null>(null)
 
   useEffect(() => {
     fetchSecrets()
+    fetchTrashSecrets()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -336,44 +358,57 @@ export default function Secrets() {
     }
   }
 
-  const handleDelete = async () => {
-    if (secretToDelete) {
-      setIsDeleting(true)
-      try {
-        await logAudit('delete', secretToDelete.id, {
-          secret_name: secretToDelete.name,
-          platform: secretToDelete.platform,
-          username: secretToDelete.username,
-          environment: secretToDelete.environment,
-          category: secretToDelete.type,
-        })
-        await deleteSecret(secretToDelete.id)
+  const handleConfirmAction = async () => {
+    if (!actionSecret || !actionType) return
 
-        toast({ title: 'Secret deletada' })
-        setSecretToDelete(null)
-      } catch (error: any) {
-        toast({
-          title: 'Erro ao deletar',
-          description: error.message || 'Falha ao remover a secret do servidor.',
-          variant: 'destructive',
-        })
-      } finally {
-        setIsDeleting(false)
+    setIsProcessingAction(true)
+    try {
+      const details = {
+        secret_name: actionSecret.name,
+        platform: actionSecret.platform,
+        username: actionSecret.username,
+        environment: actionSecret.environment,
+        category: actionSecret.type,
       }
+
+      if (actionType === 'trash') {
+        await logAudit('moved_to_trash', actionSecret.id, details)
+        await moveSecretToTrash(actionSecret.id)
+        toast({ title: 'Secret movida para a lixeira.' })
+      } else if (actionType === 'restore') {
+        await logAudit('restored_from_trash', actionSecret.id, details)
+        await restoreSecret(actionSecret.id)
+        toast({ title: 'Secret restaurada com sucesso.' })
+      } else if (actionType === 'hardDelete') {
+        await logAudit('permanently_deleted', actionSecret.id, details)
+        await permanentlyDeleteSecret(actionSecret.id)
+        toast({ title: 'Secret excluída definitivamente.' })
+      }
+
+      setActionSecret(null)
+      setActionType(null)
+    } catch (error: any) {
+      toast({
+        title: 'Erro na operação',
+        description: error.message || 'Falha ao processar ação no servidor.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsProcessingAction(false)
     }
   }
 
-  const askDelete = (secret: AppSecret) => {
+  const askAction = (secret: AppSecret, type: 'trash' | 'restore' | 'hardDelete') => {
     if (!isSecretUnlocked(secret.id)) {
       toast({
         title: 'Secret protegida',
-        description: 'Desbloqueie o cadeado antes de excluir.',
+        description: 'Desbloqueie o cadeado antes de realizar esta ação.',
         variant: 'destructive',
       })
       return
     }
-
-    setSecretToDelete(secret)
+    setActionSecret(secret)
+    setActionType(type)
   }
 
   const maskValue = (val: string) => {
@@ -382,214 +417,275 @@ export default function Secrets() {
     return '•'.repeat(12) + val.slice(-4)
   }
 
+  const currentSecrets = activeTab === 'active' ? secrets : trashSecrets
+  const currentLoading = activeTab === 'active' ? loading : trashLoading
+
   return (
     <div className="flex-1 overflow-auto p-4 md:p-8 bg-background">
       <div className="max-w-[1400px] mx-auto">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight flex items-center gap-3">
-              <KeyRound className="w-8 h-8 text-primary" />
-              Gerenciador de Secrets
-            </h2>
+        <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+            <div>
+              <h2 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+                <KeyRound className="w-8 h-8 text-primary" />
+                Gerenciador de Secrets
+              </h2>
 
-            <p className="text-muted-foreground mt-1 flex items-center gap-1">
-              <ShieldAlert className="w-4 h-4 text-amber-500" />
-              Cofre criptografado para dados sensíveis.
-            </p>
+              <p className="text-muted-foreground mt-1 flex items-center gap-1">
+                <ShieldAlert className="w-4 h-4 text-amber-500" />
+                Cofre criptografado para dados sensíveis.
+              </p>
 
-            <p className="text-xs text-amber-500 mt-2">
-              🔒 Para usar ações como copiar, editar ou excluir, primeiro desbloqueie o cadeado da
-              linha.
-            </p>
+              <p className="text-xs text-amber-500 mt-2">
+                🔒 Para usar ações como copiar, editar ou excluir, primeiro desbloqueie o cadeado da
+                linha.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <TabsList>
+                <TabsTrigger value="active">Ativos</TabsTrigger>
+                <TabsTrigger value="trash">Lixeira</TabsTrigger>
+              </TabsList>
+
+              {activeTab === 'active' && (
+                <Button onClick={openAddModal} className="shadow-md">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Adicionar Secret
+                </Button>
+              )}
+            </div>
           </div>
 
-          <Button onClick={openAddModal} className="shadow-md">
-            <Plus className="w-4 h-4 mr-2" />
-            Adicionar Secret
-          </Button>
-        </div>
-
-        <div className="bg-card border rounded-xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-muted/50">
-                <TableRow>
-                  <TableHead className="whitespace-nowrap">Nome</TableHead>
-                  <TableHead className="whitespace-nowrap">Plataforma</TableHead>
-                  <TableHead className="whitespace-nowrap">Usuário</TableHead>
-                  <TableHead className="whitespace-nowrap">Tipo</TableHead>
-                  <TableHead className="whitespace-nowrap">Ambiente</TableHead>
-                  <TableHead className="whitespace-nowrap">Valor</TableHead>
-                  <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {loading && secrets.length === 0 ? (
+          <div className="bg-card border rounded-xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-muted/50">
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
-                      Carregando secrets...
-                    </TableCell>
+                    <TableHead className="whitespace-nowrap">Nome</TableHead>
+                    <TableHead className="whitespace-nowrap">Plataforma</TableHead>
+                    <TableHead className="whitespace-nowrap">Usuário</TableHead>
+                    <TableHead className="whitespace-nowrap">Tipo</TableHead>
+                    <TableHead className="whitespace-nowrap">Ambiente</TableHead>
+                    <TableHead className="whitespace-nowrap">Valor</TableHead>
+                    <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
                   </TableRow>
-                ) : secrets.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      Nenhuma secret cadastrada.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  secrets.map((secret) => {
-                    const isUnlocked = isSecretUnlocked(secret.id)
-                    const isRevealed = !!revealed[secret.id]
+                </TableHeader>
 
-                    return (
-                      <TableRow key={secret.id}>
-                        <TableCell className="font-medium">{secret.name}</TableCell>
+                <TableBody>
+                  {currentLoading && currentSecrets.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
+                        Carregando secrets...
+                      </TableCell>
+                    </TableRow>
+                  ) : currentSecrets.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        {activeTab === 'active'
+                          ? 'Nenhuma secret cadastrada.'
+                          : 'A lixeira está vazia.'}
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    currentSecrets.map((secret) => {
+                      const isUnlocked = isSecretUnlocked(secret.id)
+                      const isRevealed = !!revealed[secret.id]
 
-                        <TableCell className="text-muted-foreground">
-                          {secret.platform || '-'}
-                        </TableCell>
+                      return (
+                        <TableRow
+                          key={secret.id}
+                          className={activeTab === 'trash' ? 'opacity-70' : ''}
+                        >
+                          <TableCell className="font-medium">{secret.name}</TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {secret.platform || '-'}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {secret.username || '-'}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="whitespace-nowrap">
+                              {secret.type}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {secret.environment || '-'}
+                          </TableCell>
+                          <TableCell className="font-mono text-sm text-muted-foreground break-all min-w-[120px]">
+                            {isUnlocked && isRevealed ? secret.value : maskValue(secret.value)}
+                          </TableCell>
 
-                        <TableCell className="text-muted-foreground">
-                          {secret.username || '-'}
-                        </TableCell>
-
-                        <TableCell>
-                          <Badge variant="outline" className="whitespace-nowrap">
-                            {secret.type}
-                          </Badge>
-                        </TableCell>
-
-                        <TableCell className="text-muted-foreground">
-                          {secret.environment || '-'}
-                        </TableCell>
-
-                        <TableCell className="font-mono text-sm text-muted-foreground break-all min-w-[120px]">
-                          {isUnlocked && isRevealed ? secret.value : maskValue(secret.value)}
-                        </TableCell>
-
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1 sm:gap-2">
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => toggleLock(secret)}
-                                  className={
-                                    isUnlocked
-                                      ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
-                                      : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
-                                  }
-                                >
-                                  {isUnlocked ? (
-                                    <Unlock className="w-4 h-4" />
-                                  ) : (
-                                    <Lock className="w-4 h-4" />
-                                  )}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {isUnlocked ? 'Bloquear linha' : 'Desbloquear linha'}
-                              </TooltipContent>
-                            </Tooltip>
-
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1 sm:gap-2">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() => handleCopy(secret)}
-                                    disabled={!isUnlocked}
-                                  >
-                                    <Copy className="w-4 h-4" />
-                                  </Button>
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {isUnlocked ? 'Copiar' : 'Desbloqueie para copiar'}
-                              </TooltipContent>
-                            </Tooltip>
-
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => toggleReveal(secret)}
-                                    disabled={!isUnlocked}
+                                    onClick={() => toggleLock(secret)}
                                     className={
-                                      isUnlocked && isRevealed
-                                        ? 'text-destructive hover:text-destructive/90 hover:bg-destructive/10'
-                                        : ''
+                                      isUnlocked
+                                        ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
+                                        : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
                                     }
                                   >
-                                    {isUnlocked && isRevealed ? (
-                                      <EyeOff className="w-4 h-4" />
+                                    {isUnlocked ? (
+                                      <Unlock className="w-4 h-4" />
                                     ) : (
-                                      <Eye className="w-4 h-4" />
+                                      <Lock className="w-4 h-4" />
                                     )}
                                   </Button>
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {!isUnlocked
-                                  ? 'Desbloqueie para visualizar'
-                                  : isRevealed
-                                    ? 'Ocultar valor'
-                                    : 'Visualizar valor'}
-                              </TooltipContent>
-                            </Tooltip>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {isUnlocked ? 'Bloquear linha' : 'Desbloquear linha'}
+                                </TooltipContent>
+                              </Tooltip>
 
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => openEditModal(secret)}
-                                    disabled={!isUnlocked}
-                                  >
-                                    <Edit className="w-4 h-4" />
-                                  </Button>
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {isUnlocked ? 'Editar' : 'Desbloqueie para editar'}
-                              </TooltipContent>
-                            </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => toggleReveal(secret)}
+                                      disabled={!isUnlocked}
+                                      className={
+                                        isUnlocked && isRevealed
+                                          ? 'text-destructive hover:text-destructive/90 hover:bg-destructive/10'
+                                          : ''
+                                      }
+                                    >
+                                      {isUnlocked && isRevealed ? (
+                                        <EyeOff className="w-4 h-4" />
+                                      ) : (
+                                        <Eye className="w-4 h-4" />
+                                      )}
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {!isUnlocked
+                                    ? 'Desbloqueie para visualizar'
+                                    : isRevealed
+                                      ? 'Ocultar valor'
+                                      : 'Visualizar valor'}
+                                </TooltipContent>
+                              </Tooltip>
 
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                    onClick={() => askDelete(secret)}
-                                    disabled={!isUnlocked}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {isUnlocked ? 'Deletar' : 'Desbloqueie para excluir'}
-                              </TooltipContent>
-                            </Tooltip>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )
-                  })
-                )}
-              </TableBody>
-            </Table>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleCopy(secret)}
+                                      disabled={!isUnlocked}
+                                    >
+                                      <Copy className="w-4 h-4" />
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {isUnlocked ? 'Copiar' : 'Desbloqueie para copiar'}
+                                </TooltipContent>
+                              </Tooltip>
+
+                              {activeTab === 'active' ? (
+                                <>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => openEditModal(secret)}
+                                          disabled={!isUnlocked}
+                                        >
+                                          <Edit className="w-4 h-4" />
+                                        </Button>
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {isUnlocked ? 'Editar' : 'Desbloqueie para editar'}
+                                    </TooltipContent>
+                                  </Tooltip>
+
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                          onClick={() => askAction(secret, 'trash')}
+                                          disabled={!isUnlocked}
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {isUnlocked
+                                        ? 'Mover para Lixeira'
+                                        : 'Desbloqueie para excluir'}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </>
+                              ) : (
+                                <>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          onClick={() => askAction(secret, 'restore')}
+                                          disabled={!isUnlocked}
+                                        >
+                                          <RotateCcw className="w-4 h-4" />
+                                        </Button>
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {isUnlocked ? 'Restaurar' : 'Desbloqueie para restaurar'}
+                                    </TooltipContent>
+                                  </Tooltip>
+
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                          onClick={() => askAction(secret, 'hardDelete')}
+                                          disabled={!isUnlocked}
+                                        >
+                                          <ArchiveX className="w-4 h-4" />
+                                        </Button>
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {isUnlocked
+                                        ? 'Excluir Definitivamente'
+                                        : 'Desbloqueie para excluir'}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </div>
-        </div>
+        </Tabs>
       </div>
 
       <Dialog open={isModalOpen} onOpenChange={(val) => !isSaving && setIsModalOpen(val)}>
@@ -603,7 +699,6 @@ export default function Secrets() {
 
           <ScrollArea className="max-h-[60vh] pr-4 -mr-4">
             <div className="grid gap-8 py-4">
-              {/* Bloco 1: Identificação */}
               <div className="space-y-4">
                 <h4 className="text-sm font-semibold border-b pb-2">Identificação</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -650,7 +745,6 @@ export default function Secrets() {
                 </div>
               </div>
 
-              {/* Bloco 2: Acesso */}
               <div className="space-y-4">
                 <h4 className="text-sm font-semibold border-b pb-2">Acesso</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -685,7 +779,6 @@ export default function Secrets() {
                 </div>
               </div>
 
-              {/* Bloco 3: Contexto e Origem */}
               <div className="space-y-4">
                 <h4 className="text-sm font-semibold border-b pb-2">Contexto e Origem</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -783,27 +876,43 @@ export default function Secrets() {
       />
 
       <AlertDialog
-        open={!!secretToDelete}
-        onOpenChange={(open) => !open && !isDeleting && setSecretToDelete(null)}
+        open={!!actionSecret && !!actionType}
+        onOpenChange={(open) => !open && !isProcessingAction && setActionType(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {actionType === 'trash' && 'Mover para Lixeira?'}
+              {actionType === 'restore' && 'Restaurar Secret?'}
+              {actionType === 'hardDelete' && 'Você tem certeza absoluta?'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Isso removerá permanentemente a secret "
-              {secretToDelete?.name}".
+              {actionType === 'trash' &&
+                `Deseja mover a secret "${actionSecret?.name}" para a lixeira?`}
+              {actionType === 'restore' &&
+                `A secret "${actionSecret?.name}" retornará para a lista principal de ativos.`}
+              {actionType === 'hardDelete' &&
+                `Esta ação excluirá definitivamente a secret "${actionSecret?.name}". Não será possível restaurar. Deseja continuar?`}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel disabled={isProcessingAction}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleConfirmAction}
+              disabled={isProcessingAction}
+              className={
+                actionType === 'hardDelete'
+                  ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                  : ''
+              }
             >
-              {isDeleting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Deletar
+              {isProcessingAction && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {actionType === 'trash'
+                ? 'Mover para Lixeira'
+                : actionType === 'restore'
+                  ? 'Restaurar'
+                  : 'Excluir Definitivamente'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

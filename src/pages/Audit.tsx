@@ -38,7 +38,10 @@ const actionMap: Record<string, string> = {
   copy: 'Copiou',
   create: 'Criou',
   update: 'Atualizou',
-  delete: 'Excluiu',
+  delete: 'Excluiu (Antigo)',
+  moved_to_trash: 'Moveu para a Lixeira',
+  restored_from_trash: 'Restaurou da Lixeira',
+  permanently_deleted: 'Excluiu Definitivamente',
 }
 
 export default function Audit() {
@@ -184,7 +187,10 @@ export default function Audit() {
               <SelectItem value="copy">Cópia</SelectItem>
               <SelectItem value="create">Criação</SelectItem>
               <SelectItem value="update">Atualização</SelectItem>
-              <SelectItem value="delete">Deleção</SelectItem>
+              <SelectItem value="delete">Deleção (Antigo)</SelectItem>
+              <SelectItem value="moved_to_trash">Mover p/ Lixeira</SelectItem>
+              <SelectItem value="restored_from_trash">Restauração</SelectItem>
+              <SelectItem value="permanently_deleted">Deleção Definitiva</SelectItem>
             </SelectContent>
           </Select>
           <Input
@@ -240,7 +246,9 @@ export default function Audit() {
                       <TableCell className="font-medium">
                         {actionMap[log.action] || log.action}
                       </TableCell>
-                      <TableCell>{log.secrets?.name || 'Segredo removido'}</TableCell>
+                      <TableCell>
+                        {log.secrets?.name || log.details?.secret_name || 'Segredo removido'}
+                      </TableCell>
                       <TableCell className="text-right">
                         <Badge
                           variant="default"
@@ -307,7 +315,9 @@ export default function Audit() {
                   <div>
                     <span className="font-semibold text-muted-foreground">Secret Afetada:</span>{' '}
                     <br />
-                    {selectedLog.secrets?.name || 'Segredo removido'}
+                    {selectedLog.secrets?.name ||
+                      selectedLog.details?.secret_name ||
+                      'Segredo removido'}
                   </div>
                   <div>
                     <span className="font-semibold text-muted-foreground">Endereço IP:</span> <br />
