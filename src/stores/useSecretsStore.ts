@@ -361,7 +361,12 @@ export default function useSecretsStore() {
       | 'delete'
       | 'moved_to_trash'
       | 'restored_from_trash'
-      | 'permanently_deleted',
+      | 'permanently_deleted'
+      | 'master_password_created'
+      | 'recovery_key_generated'
+      | 'master_password_unlocked'
+      | 'master_password_locked'
+      | 'master_password_expired',
     secretId: string | null,
     details?: any,
   ) => {

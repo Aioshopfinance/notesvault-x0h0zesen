@@ -42,6 +42,11 @@ const actionMap: Record<string, string> = {
   moved_to_trash: 'Moveu para Lixeira',
   restored_from_trash: 'Restaurou',
   permanently_deleted: 'Excluiu Definitivamente',
+  master_password_created: 'Criou Senha Mestre',
+  recovery_key_generated: 'Gerou Chave Recuperação',
+  master_password_unlocked: 'Desbloqueou',
+  master_password_locked: 'Bloqueou',
+  master_password_expired: 'Sessão Expirada',
 }
 
 export default function Audit() {
@@ -191,6 +196,11 @@ export default function Audit() {
               <SelectItem value="moved_to_trash">Moveu para Lixeira</SelectItem>
               <SelectItem value="restored_from_trash">Restaurou</SelectItem>
               <SelectItem value="permanently_deleted">Excluiu Definitivamente</SelectItem>
+              <SelectItem value="master_password_created">Criou Senha Mestre</SelectItem>
+              <SelectItem value="recovery_key_generated">Gerou Chave Recuperação</SelectItem>
+              <SelectItem value="master_password_unlocked">Desbloqueou</SelectItem>
+              <SelectItem value="master_password_locked">Bloqueou</SelectItem>
+              <SelectItem value="master_password_expired">Sessão Expirada</SelectItem>
             </SelectContent>
           </Select>
           <Input
@@ -247,7 +257,10 @@ export default function Audit() {
                         {actionMap[log.action] || log.action}
                       </TableCell>
                       <TableCell>
-                        {log.details?.secret_name || log.secrets?.name || 'Secret excluída'}
+                        {log.details?.action_context === 'master_password_security' &&
+                        !log.details?.secret_name
+                          ? 'Configuração de Segurança'
+                          : log.details?.secret_name || log.secrets?.name || 'Secret excluída'}
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge
@@ -313,11 +326,14 @@ export default function Audit() {
                     {user?.email || 'Desconhecido'}
                   </div>
                   <div>
-                    <span className="font-semibold text-muted-foreground">Secret Afetada:</span>{' '}
+                    <span className="font-semibold text-muted-foreground">Contexto / Secret:</span>{' '}
                     <br />
-                    {selectedLog.details?.secret_name ||
-                      selectedLog.secrets?.name ||
-                      'Secret excluída'}
+                    {selectedLog.details?.action_context === 'master_password_security' &&
+                    !selectedLog.details?.secret_name
+                      ? 'Configuração de Segurança'
+                      : selectedLog.details?.secret_name ||
+                        selectedLog.secrets?.name ||
+                        'Secret excluída'}
                   </div>
                   <div>
                     <span className="font-semibold text-muted-foreground">Endereço IP:</span> <br />
