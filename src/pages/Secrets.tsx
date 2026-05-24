@@ -50,6 +50,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { MasterPasswordDialog } from '@/components/MasterPasswordDialog'
 import useSecretsStore, { AppSecret } from '@/stores/useSecretsStore'
 import { useToast } from '@/hooks/use-toast'
@@ -69,8 +70,15 @@ export default function Secrets() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: '',
-    type: 'API Key',
+    type: 'Login/Senha',
     value: '',
+    platform: '',
+    url: '',
+    username: '',
+    environment: 'Pessoal',
+    passwordOrigin: 'Criada manualmente',
+    recoveryPhrase: '',
+    notes: '',
   })
   const [secretToDelete, setSecretToDelete] = useState<AppSecret | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -103,7 +111,13 @@ export default function Secrets() {
   const unlockSecret = async (secret: AppSecret) => {
     setUnlocked((prev) => ({ ...prev, [secret.id]: true }))
 
-    await logAudit('view', secret.id)
+    await logAudit('view', secret.id, {
+      secret_name: secret.name,
+      platform: secret.platform,
+      username: secret.username,
+      environment: secret.environment,
+      category: secret.type,
+    })
 
     if (unlockTimersRef.current[secret.id]) {
       clearTimeout(unlockTimersRef.current[secret.id])
@@ -169,7 +183,13 @@ export default function Secrets() {
     setRevealed((prev) => ({ ...prev, [secret.id]: isNowRevealed }))
 
     if (isNowRevealed) {
-      await logAudit('view', secret.id)
+      await logAudit('view', secret.id, {
+        secret_name: secret.name,
+        platform: secret.platform,
+        username: secret.username,
+        environment: secret.environment,
+        category: secret.type,
+      })
     }
   }
 
@@ -189,7 +209,13 @@ export default function Secrets() {
         title: 'Copiado!',
         description: 'Secret copiada para a área de transferência.',
       })
-      await logAudit('copy', secret.id)
+      await logAudit('copy', secret.id, {
+        secret_name: secret.name,
+        platform: secret.platform,
+        username: secret.username,
+        environment: secret.environment,
+        category: secret.type,
+      })
     } catch {
       toast({
         title: 'Erro ao copiar',
@@ -201,7 +227,18 @@ export default function Secrets() {
 
   const openAddModal = () => {
     setEditingId(null)
-    setFormData({ name: '', type: 'API Key', value: '' })
+    setFormData({
+      name: '',
+      type: 'Login/Senha',
+      value: '',
+      platform: '',
+      url: '',
+      username: '',
+      environment: 'Pessoal',
+      passwordOrigin: 'Criada manualmente',
+      recoveryPhrase: '',
+      notes: '',
+    })
     setIsModalOpen(true)
   }
 
@@ -216,7 +253,18 @@ export default function Secrets() {
     }
 
     setEditingId(secret.id)
-    setFormData({ name: secret.name, type: secret.type, value: secret.value })
+    setFormData({
+      name: secret.name,
+      type: secret.type,
+      value: secret.value,
+      platform: secret.platform || '',
+      url: secret.url || '',
+      username: secret.username || '',
+      environment: secret.environment || 'Pessoal',
+      passwordOrigin: secret.passwordOrigin || 'Criada manualmente',
+      recoveryPhrase: secret.recoveryPhrase || '',
+      notes: secret.notes || '',
+    })
     setIsModalOpen(true)
   }
 
@@ -237,16 +285,42 @@ export default function Secrets() {
           name: formData.name,
           type: formData.type,
           value: formData.value,
+          platform: formData.platform,
+          url: formData.url,
+          username: formData.username,
+          environment: formData.environment,
+          passwordOrigin: formData.passwordOrigin,
+          recoveryPhrase: formData.recoveryPhrase,
+          notes: formData.notes,
         })
-        await logAudit('update', editingId)
+        await logAudit('update', editingId, {
+          secret_name: formData.name,
+          platform: formData.platform,
+          username: formData.username,
+          environment: formData.environment,
+          category: formData.type,
+        })
         toast({ title: 'Secret atualizada com sucesso' })
       } else {
         const newSecret = await addSecret({
           name: formData.name,
           type: formData.type,
           value: formData.value,
+          platform: formData.platform,
+          url: formData.url,
+          username: formData.username,
+          environment: formData.environment,
+          passwordOrigin: formData.passwordOrigin,
+          recoveryPhrase: formData.recoveryPhrase,
+          notes: formData.notes,
         })
-        await logAudit('create', newSecret.id)
+        await logAudit('create', newSecret.id, {
+          secret_name: newSecret.name,
+          platform: newSecret.platform,
+          username: newSecret.username,
+          environment: newSecret.environment,
+          category: newSecret.type,
+        })
         toast({ title: 'Secret armazenada com segurança' })
       }
 
@@ -266,7 +340,13 @@ export default function Secrets() {
     if (secretToDelete) {
       setIsDeleting(true)
       try {
-        await logAudit('delete', secretToDelete.id)
+        await logAudit('delete', secretToDelete.id, {
+          secret_name: secretToDelete.name,
+          platform: secretToDelete.platform,
+          username: secretToDelete.username,
+          environment: secretToDelete.environment,
+          category: secretToDelete.type,
+        })
         await deleteSecret(secretToDelete.id)
 
         toast({ title: 'Secret deletada' })
@@ -304,7 +384,7 @@ export default function Secrets() {
 
   return (
     <div className="flex-1 overflow-auto p-4 md:p-8 bg-background">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-[1400px] mx-auto">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
           <div>
             <h2 className="text-3xl font-bold tracking-tight flex items-center gap-3">
@@ -330,179 +410,190 @@ export default function Secrets() {
         </div>
 
         <div className="bg-card border rounded-xl shadow-sm overflow-hidden">
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Criado em</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-
-            <TableBody>
-              {loading && secrets.length === 0 ? (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-muted/50">
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
-                    Carregando secrets...
-                  </TableCell>
+                  <TableHead className="whitespace-nowrap">Nome</TableHead>
+                  <TableHead className="whitespace-nowrap">Plataforma</TableHead>
+                  <TableHead className="whitespace-nowrap">Usuário</TableHead>
+                  <TableHead className="whitespace-nowrap">Tipo</TableHead>
+                  <TableHead className="whitespace-nowrap">Ambiente</TableHead>
+                  <TableHead className="whitespace-nowrap">Valor</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Ações</TableHead>
                 </TableRow>
-              ) : secrets.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    Nenhuma secret cadastrada.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                secrets.map((secret) => {
-                  const isUnlocked = isSecretUnlocked(secret.id)
-                  const isRevealed = !!revealed[secret.id]
+              </TableHeader>
 
-                  return (
-                    <TableRow key={secret.id}>
-                      <TableCell className="font-medium">{secret.name}</TableCell>
+              <TableBody>
+                {loading && secrets.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
+                      Carregando secrets...
+                    </TableCell>
+                  </TableRow>
+                ) : secrets.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      Nenhuma secret cadastrada.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  secrets.map((secret) => {
+                    const isUnlocked = isSecretUnlocked(secret.id)
+                    const isRevealed = !!revealed[secret.id]
 
-                      <TableCell>
-                        <Badge variant="outline">{secret.type}</Badge>
-                      </TableCell>
+                    return (
+                      <TableRow key={secret.id}>
+                        <TableCell className="font-medium">{secret.name}</TableCell>
 
-                      <TableCell className="text-sm text-muted-foreground">
-                        {new Intl.DateTimeFormat('pt-BR', {
-                          dateStyle: 'short',
-                          timeStyle: 'short',
-                        }).format(new Date(secret.createdAt))}
-                      </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {secret.platform || '-'}
+                        </TableCell>
 
-                      <TableCell className="font-mono text-sm text-muted-foreground break-all">
-                        {isUnlocked && isRevealed ? secret.value : maskValue(secret.value)}
-                      </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {secret.username || '-'}
+                        </TableCell>
 
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1 sm:gap-2">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => toggleLock(secret)}
-                                className={
-                                  isUnlocked
-                                    ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
-                                    : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
-                                }
-                              >
-                                {isUnlocked ? (
-                                  <Unlock className="w-4 h-4" />
-                                ) : (
-                                  <Lock className="w-4 h-4" />
-                                )}
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {isUnlocked ? 'Bloquear linha' : 'Desbloquear linha'}
-                            </TooltipContent>
-                          </Tooltip>
+                        <TableCell>
+                          <Badge variant="outline" className="whitespace-nowrap">
+                            {secret.type}
+                          </Badge>
+                        </TableCell>
 
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span>
+                        <TableCell className="text-muted-foreground">
+                          {secret.environment || '-'}
+                        </TableCell>
+
+                        <TableCell className="font-mono text-sm text-muted-foreground break-all min-w-[120px]">
+                          {isUnlocked && isRevealed ? secret.value : maskValue(secret.value)}
+                        </TableCell>
+
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1 sm:gap-2">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => handleCopy(secret)}
-                                  disabled={!isUnlocked}
-                                >
-                                  <Copy className="w-4 h-4" />
-                                </Button>
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {isUnlocked ? 'Copiar' : 'Desbloqueie para copiar'}
-                            </TooltipContent>
-                          </Tooltip>
-
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => toggleReveal(secret)}
-                                  disabled={!isUnlocked}
+                                  onClick={() => toggleLock(secret)}
                                   className={
-                                    isUnlocked && isRevealed
-                                      ? 'text-destructive hover:text-destructive/90 hover:bg-destructive/10'
-                                      : ''
+                                    isUnlocked
+                                      ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
+                                      : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
                                   }
                                 >
-                                  {isUnlocked && isRevealed ? (
-                                    <EyeOff className="w-4 h-4" />
+                                  {isUnlocked ? (
+                                    <Unlock className="w-4 h-4" />
                                   ) : (
-                                    <Eye className="w-4 h-4" />
+                                    <Lock className="w-4 h-4" />
                                   )}
                                 </Button>
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {!isUnlocked
-                                ? 'Desbloqueie para visualizar'
-                                : isRevealed
-                                  ? 'Ocultar valor'
-                                  : 'Visualizar valor'}
-                            </TooltipContent>
-                          </Tooltip>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {isUnlocked ? 'Bloquear linha' : 'Desbloquear linha'}
+                              </TooltipContent>
+                            </Tooltip>
 
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => openEditModal(secret)}
-                                  disabled={!isUnlocked}
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {isUnlocked ? 'Editar' : 'Desbloqueie para editar'}
-                            </TooltipContent>
-                          </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleCopy(secret)}
+                                    disabled={!isUnlocked}
+                                  >
+                                    <Copy className="w-4 h-4" />
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {isUnlocked ? 'Copiar' : 'Desbloqueie para copiar'}
+                              </TooltipContent>
+                            </Tooltip>
 
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  onClick={() => askDelete(secret)}
-                                  disabled={!isUnlocked}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              {isUnlocked ? 'Deletar' : 'Desbloqueie para excluir'}
-                            </TooltipContent>
-                          </Tooltip>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
-              )}
-            </TableBody>
-          </Table>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => toggleReveal(secret)}
+                                    disabled={!isUnlocked}
+                                    className={
+                                      isUnlocked && isRevealed
+                                        ? 'text-destructive hover:text-destructive/90 hover:bg-destructive/10'
+                                        : ''
+                                    }
+                                  >
+                                    {isUnlocked && isRevealed ? (
+                                      <EyeOff className="w-4 h-4" />
+                                    ) : (
+                                      <Eye className="w-4 h-4" />
+                                    )}
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {!isUnlocked
+                                  ? 'Desbloqueie para visualizar'
+                                  : isRevealed
+                                    ? 'Ocultar valor'
+                                    : 'Visualizar valor'}
+                              </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => openEditModal(secret)}
+                                    disabled={!isUnlocked}
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {isUnlocked ? 'Editar' : 'Desbloqueie para editar'}
+                              </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                    onClick={() => askDelete(secret)}
+                                    disabled={!isUnlocked}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {isUnlocked ? 'Deletar' : 'Desbloqueie para excluir'}
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </div>
 
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={isModalOpen} onOpenChange={(val) => !isSaving && setIsModalOpen(val)}>
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingId ? 'Editar Secret' : 'Nova Secret'}</DialogTitle>
             <DialogDescription>
@@ -510,50 +601,164 @@ export default function Secrets() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Nome identificador</label>
-              <Input
-                placeholder="ex: Produção AWS"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                disabled={isSaving}
-              />
-            </div>
+          <ScrollArea className="max-h-[60vh] pr-4 -mr-4">
+            <div className="grid gap-8 py-4">
+              {/* Bloco 1: Identificação */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold border-b pb-2">Identificação</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Nome identificador</label>
+                    <Input
+                      placeholder="ex: Supabase NotesVault"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Tipo</label>
+                    <Select
+                      value={formData.type}
+                      onValueChange={(val) => setFormData({ ...formData, type: val })}
+                      disabled={isSaving}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um tipo" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Login/Senha">Login/Senha</SelectItem>
+                        <SelectItem value="E-mail">E-mail</SelectItem>
+                        <SelectItem value="API Key">API Key</SelectItem>
+                        <SelectItem value="Token">Token</SelectItem>
+                        <SelectItem value="Banco de Dados">Banco de Dados</SelectItem>
+                        <SelectItem value="Servidor/SSH">Servidor/SSH</SelectItem>
+                        <SelectItem value="Seed / Frase Secreta">Seed / Frase Secreta</SelectItem>
+                        <SelectItem value="Outro">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2 md:col-span-2">
+                    <label className="text-sm font-medium">Plataforma</label>
+                    <Input
+                      placeholder="ex: Supabase, AWS, Google"
+                      value={formData.platform}
+                      onChange={(e) => setFormData({ ...formData, platform: e.target.value })}
+                      disabled={isSaving}
+                    />
+                  </div>
+                </div>
+              </div>
 
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Tipo</label>
-              <Select
-                value={formData.type}
-                onValueChange={(val) => setFormData({ ...formData, type: val })}
-                disabled={isSaving}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="API Key">API Key</SelectItem>
-                  <SelectItem value="Email">Email</SelectItem>
-                  <SelectItem value="Login">Login</SelectItem>
-                  <SelectItem value="Token">Token</SelectItem>
-                  <SelectItem value="Outro">Outro</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              {/* Bloco 2: Acesso */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold border-b pb-2">Acesso</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid gap-2 md:col-span-2">
+                    <label className="text-sm font-medium">URL</label>
+                    <Input
+                      placeholder="ex: https://supabase.com/dashboard"
+                      value={formData.url}
+                      onChange={(e) => setFormData({ ...formData, url: e.target.value })}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Usuário / E-mail</label>
+                    <Input
+                      placeholder="ex: user@example.com"
+                      value={formData.username}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Valor (Secret)</label>
+                    <Textarea
+                      placeholder="Sua senha, chave ou token..."
+                      value={formData.value}
+                      onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+                      className="font-mono min-h-[60px]"
+                      disabled={isSaving}
+                    />
+                  </div>
+                </div>
+              </div>
 
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Valor Secreto</label>
-              <Textarea
-                placeholder="Insira o valor..."
-                value={formData.value}
-                onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                className="font-mono min-h-[100px]"
-                disabled={isSaving}
-              />
+              {/* Bloco 3: Contexto e Origem */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold border-b pb-2">Contexto e Origem</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Ambiente</label>
+                    <Select
+                      value={formData.environment}
+                      onValueChange={(val) => setFormData({ ...formData, environment: val })}
+                      disabled={isSaving}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Pessoal">Pessoal</SelectItem>
+                        <SelectItem value="Teste">Teste</SelectItem>
+                        <SelectItem value="Desenvolvimento">Desenvolvimento</SelectItem>
+                        <SelectItem value="Produção">Produção</SelectItem>
+                        <SelectItem value="Cliente">Cliente</SelectItem>
+                        <SelectItem value="Outro">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <label className="text-sm font-medium">Origem da Senha</label>
+                    <Select
+                      value={formData.passwordOrigin}
+                      onValueChange={(val) => setFormData({ ...formData, passwordOrigin: val })}
+                      disabled={isSaving}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Criada manualmente">Criada manualmente</SelectItem>
+                        <SelectItem value="Gerador do navegador">Gerador do navegador</SelectItem>
+                        <SelectItem value="Gerador do Chrome">Gerador do Chrome</SelectItem>
+                        <SelectItem value="Gerador do Safari">Gerador do Safari</SelectItem>
+                        <SelectItem value="Gerador externo">Gerador externo</SelectItem>
+                        <SelectItem value="Frase secreta">Frase secreta</SelectItem>
+                        <SelectItem value="12 palavras secretas">12 palavras secretas</SelectItem>
+                        <SelectItem value="Outro">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2 md:col-span-2">
+                    <label className="text-sm font-medium">
+                      Frase de Recuperação (Seed/Mnemonic)
+                    </label>
+                    <Textarea
+                      placeholder="Insira as palavras secretas de recuperação..."
+                      value={formData.recoveryPhrase}
+                      onChange={(e) => setFormData({ ...formData, recoveryPhrase: e.target.value })}
+                      className="font-mono min-h-[60px]"
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className="grid gap-2 md:col-span-2">
+                    <label className="text-sm font-medium">Notas adicionais</label>
+                    <Textarea
+                      placeholder="Informações adicionais sobre o acesso..."
+                      value={formData.notes}
+                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                      className="min-h-[60px]"
+                      disabled={isSaving}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          </ScrollArea>
 
-          <DialogFooter>
+          <DialogFooter className="mt-2 border-t pt-4">
             <Button variant="outline" onClick={() => setIsModalOpen(false)} disabled={isSaving}>
               Cancelar
             </Button>

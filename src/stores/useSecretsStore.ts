@@ -1,7 +1,7 @@
 import { useState, useEffect, Dispatch, SetStateAction } from 'react'
 import { supabase } from '@/lib/supabase/client'
 
-export type SecretType = 'API Key' | 'Email' | 'Login' | 'Token' | 'Outro' | string
+export type SecretType = string
 
 export interface AppSecret {
   id: string
@@ -9,6 +9,14 @@ export interface AppSecret {
   value: string
   type: SecretType
   createdAt: string
+  platform?: string | null
+  url?: string | null
+  username?: string | null
+  environment?: string | null
+  passwordOrigin?: string | null
+  recoveryPhrase?: string | null
+  notes?: string | null
+  updatedAt?: string | null
 }
 
 export interface AuditLog {
@@ -75,12 +83,20 @@ export default function useSecretsStore() {
     if (!error && data) {
       globalState = {
         ...globalState,
-        secrets: data.map((s) => ({
+        secrets: data.map((s: any) => ({
           id: s.id,
           name: s.name,
           value: s.value,
           type: s.category,
           createdAt: s.created_at,
+          platform: s.platform,
+          url: s.url,
+          username: s.username,
+          environment: s.environment,
+          passwordOrigin: s.password_origin,
+          recoveryPhrase: s.recovery_phrase,
+          notes: s.notes,
+          updatedAt: s.updated_at,
         })),
         loading: false,
       }
@@ -91,7 +107,7 @@ export default function useSecretsStore() {
     isFetching = false
   }
 
-  const addSecret = async (secretData: Omit<AppSecret, 'id' | 'createdAt'>) => {
+  const addSecret = async (secretData: Omit<AppSecret, 'id' | 'createdAt' | 'updatedAt'>) => {
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -104,6 +120,13 @@ export default function useSecretsStore() {
         name: secretData.name,
         value: secretData.value,
         category: secretData.type,
+        platform: secretData.platform,
+        url: secretData.url,
+        username: secretData.username,
+        environment: secretData.environment,
+        password_origin: secretData.passwordOrigin,
+        recovery_phrase: secretData.recoveryPhrase,
+        notes: secretData.notes,
       })
       .select()
       .single()
@@ -116,6 +139,14 @@ export default function useSecretsStore() {
       value: data.value,
       type: data.category,
       createdAt: data.created_at,
+      platform: data.platform,
+      url: data.url,
+      username: data.username,
+      environment: data.environment,
+      passwordOrigin: data.password_origin,
+      recoveryPhrase: data.recovery_phrase,
+      notes: data.notes,
+      updatedAt: data.updated_at,
     }
 
     globalState = { ...globalState, secrets: [newSecret, ...globalState.secrets] }
@@ -131,9 +162,18 @@ export default function useSecretsStore() {
     if (!user) throw new Error('Usuário não autenticado.')
 
     const payload: any = {}
-    if (updatedData.name) payload.name = updatedData.name
-    if (updatedData.value) payload.value = updatedData.value
-    if (updatedData.type) payload.category = updatedData.type
+    if (updatedData.name !== undefined) payload.name = updatedData.name
+    if (updatedData.value !== undefined) payload.value = updatedData.value
+    if (updatedData.type !== undefined) payload.category = updatedData.type
+    if (updatedData.platform !== undefined) payload.platform = updatedData.platform
+    if (updatedData.url !== undefined) payload.url = updatedData.url
+    if (updatedData.username !== undefined) payload.username = updatedData.username
+    if (updatedData.environment !== undefined) payload.environment = updatedData.environment
+    if (updatedData.passwordOrigin !== undefined)
+      payload.password_origin = updatedData.passwordOrigin
+    if (updatedData.recoveryPhrase !== undefined)
+      payload.recovery_phrase = updatedData.recoveryPhrase
+    if (updatedData.notes !== undefined) payload.notes = updatedData.notes
 
     const { data, error } = await supabase
       .from('secrets')
@@ -155,6 +195,14 @@ export default function useSecretsStore() {
               value: data.value,
               type: data.category,
               createdAt: data.created_at,
+              platform: data.platform,
+              url: data.url,
+              username: data.username,
+              environment: data.environment,
+              passwordOrigin: data.password_origin,
+              recoveryPhrase: data.recovery_phrase,
+              notes: data.notes,
+              updatedAt: data.updated_at,
             }
           : s,
       ),
@@ -183,6 +231,7 @@ export default function useSecretsStore() {
   const logAudit = async (
     action: 'view' | 'copy' | 'create' | 'update' | 'delete',
     secretId: string,
+    details?: any,
   ) => {
     const {
       data: { user },
@@ -193,6 +242,7 @@ export default function useSecretsStore() {
       user_id: user.id,
       secret_id: secretId,
       action,
+      details,
     })
 
     if (error) console.error('Erro ao registrar log de auditoria', error)
