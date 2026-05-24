@@ -122,12 +122,17 @@ export default function Secrets() {
 
   const isSecretUnlocked = (secretId: string) => !!unlocked[secretId]
 
-  const lockSecret = (secret: AppSecret) => {
+  const lockSecret = async (secret: AppSecret) => {
     if (unlockTimersRef.current[secret.id]) {
       clearTimeout(unlockTimersRef.current[secret.id])
     }
     setUnlocked((prev) => ({ ...prev, [secret.id]: false }))
     setRevealed((prev) => ({ ...prev, [secret.id]: false }))
+
+    await logAudit('master_password_locked', secret.id, {
+      action_context: 'master_password_security',
+      secret_name: secret.name,
+    })
   }
 
   const unlockSecret = async (secret: AppSecret) => {
@@ -137,10 +142,16 @@ export default function Secrets() {
       clearTimeout(unlockTimersRef.current[secret.id])
     }
 
-    unlockTimersRef.current[secret.id] = setTimeout(() => {
+    // 5 minutes
+    unlockTimersRef.current[secret.id] = setTimeout(async () => {
       setUnlocked((prev) => ({ ...prev, [secret.id]: false }))
       setRevealed((prev) => ({ ...prev, [secret.id]: false }))
-    }, 15000)
+
+      await logAudit('master_password_expired', secret.id, {
+        action_context: 'master_password_security',
+        secret_name: secret.name,
+      })
+    }, 300000)
   }
 
   const openUnlockDialog = (secret: AppSecret) => {
@@ -160,13 +171,18 @@ export default function Secrets() {
 
     if (!unlockingSecret) return
 
+    await logAudit('master_password_unlocked', unlockingSecret.id, {
+      action_context: 'master_password_security',
+      secret_name: unlockingSecret.name,
+    })
+
     await unlockSecret(unlockingSecret)
     setIsUnlockDialogOpen(false)
     setUnlockingSecret(null)
 
     toast({
       title: 'Secret desbloqueada',
-      description: 'Acesso liberado por 15 segundos.',
+      description: 'Acesso liberado por 5 minutos.',
     })
   }
 
@@ -178,7 +194,7 @@ export default function Secrets() {
     if (!isSecretUnlocked(secret.id)) {
       openUnlockDialog(secret)
     } else {
-      lockSecret(secret)
+      await lockSecret(secret)
     }
   }
 
