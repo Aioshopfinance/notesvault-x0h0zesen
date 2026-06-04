@@ -24,18 +24,7 @@ interface MasterPasswordDialogProps {
   description?: string
 }
 
-async function hashText(text: string) {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(text)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('')
-}
-
-function generateRecoveryKey() {
-  const segment = () => Math.random().toString(36).substring(2, 6).toUpperCase()
-  return `NV-${segment()}-${segment()}-${segment()}-${segment()}`
-}
+import { hashText, verifyText, generateRecoveryKey } from '@/lib/crypto'
 
 export function MasterPasswordDialog({
   open,
@@ -131,7 +120,7 @@ export function MasterPasswordDialog({
           master_password_hash: passwordHash,
           recovery_key_hash: recoveryHash,
           recovery_key_created_at: new Date().toISOString(),
-          master_password: passwordHash,
+          master_password: null,
         })
         .eq('id', user.id)
 
@@ -179,15 +168,14 @@ export function MasterPasswordDialog({
 
       let isValid = false
       if (data?.master_password_hash) {
-        const hash = await hashText(password)
-        isValid = hash === data.master_password_hash
+        isValid = await verifyText(password, data.master_password_hash)
       } else if (data?.master_password) {
-        isValid = password === data.master_password
+        isValid = await verifyText(password, data.master_password)
         if (isValid) {
           const hash = await hashText(password)
           await supabase
             .from('user_preferences')
-            .update({ master_password_hash: hash, master_password: hash })
+            .update({ master_password_hash: hash, master_password: null })
             .eq('id', user.id)
         }
       }

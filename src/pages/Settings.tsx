@@ -14,8 +14,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Loader2, User, Shield, KeyRound } from 'lucide-react'
+import { Loader2, User, Shield, KeyRound, Copy } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import { Checkbox } from '@/components/ui/checkbox'
+import { hashText, verifyText, generateRecoveryKey } from '@/lib/crypto'
 
 type Tab = 'profile' | 'security' | 'master-password'
 
@@ -397,24 +407,26 @@ function SecurityForm({ user }: { user: any }) {
 function MasterPasswordForm({ user }: { user: any }) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
-  const [currentMasterPassword, setCurrentMasterPassword] = useState('')
   const [hasMasterPassword, setHasMasterPassword] = useState(false)
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false)
+  const [recoveryKey, setRecoveryKey] = useState('')
+  const [confirmedSafekeeping, setConfirmedSafekeeping] = useState(false)
+
   useEffect(() => {
     if (user) {
       const fetchPwd = async () => {
-        const { data } = await (supabase as any)
+        const { data } = await supabase
           .from('user_preferences')
-          .select('master_password')
+          .select('master_password_hash, master_password')
           .eq('id', user.id)
           .single()
 
-        if (data?.master_password) {
+        if (data?.master_password_hash || data?.master_password) {
           setHasMasterPassword(true)
-          setCurrentMasterPassword(data.master_password)
         }
       }
 
@@ -422,12 +434,17 @@ function MasterPasswordForm({ user }: { user: any }) {
     }
   }, [user])
 
+  const logSecurityEvent = async (action: string) => {
+    if (!user) return
+    await supabase.from('secret_access_logs').insert({
+      user_id: user.id,
+      action,
+      details: { action_context: 'master_password_security' },
+    })
+  }
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-
-    if (hasMasterPassword && oldPassword !== currentMasterPassword) {
-      return toast({ title: 'Senha antiga incorreta', variant: 'destructive' })
-    }
 
     if (newPassword !== confirmPassword) {
       return toast({ title: 'As novas senhas não coincidem', variant: 'destructive' })
@@ -443,23 +460,67 @@ function MasterPasswordForm({ user }: { user: any }) {
     setLoading(true)
 
     try {
-      const { error } = await (supabase as any)
+      if (hasMasterPassword) {
+        if (!oldPassword) {
+          setLoading(false)
+          return toast({ title: 'A senha antiga é obrigatória', variant: 'destructive' })
+        }
+
+        const { data: prefs } = await supabase
+          .from('user_preferences')
+          .select('master_password_hash, master_password')
+          .eq('id', user.id)
+          .single()
+
+        let isValid = false
+        if (prefs?.master_password_hash) {
+          isValid = await verifyText(oldPassword, prefs.master_password_hash)
+        } else if (prefs?.master_password) {
+          isValid = await verifyText(oldPassword, prefs.master_password)
+        }
+
+        if (!isValid) {
+          setLoading(false)
+          return toast({ title: 'Senha antiga incorreta', variant: 'destructive' })
+        }
+      }
+
+      const newHash = await hashText(newPassword)
+
+      let updatePayload: any = {
+        master_password_hash: newHash,
+        master_password: null, // clear old plain text or simple hash
+        updated_at: new Date().toISOString(),
+      }
+
+      let rKey = ''
+      if (!hasMasterPassword) {
+        rKey = generateRecoveryKey()
+        const rHash = await hashText(rKey)
+        updatePayload.recovery_key_hash = rHash
+        updatePayload.recovery_key_created_at = new Date().toISOString()
+      }
+
+      const { error } = await supabase
         .from('user_preferences')
-        .update({
-          master_password: newPassword,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updatePayload)
         .eq('id', user.id)
 
       if (error) throw error
 
-      setCurrentMasterPassword(newPassword)
-      setHasMasterPassword(true)
+      if (!hasMasterPassword) {
+        setRecoveryKey(rKey)
+        setShowRecoveryModal(true)
+        setHasMasterPassword(true)
+        await logSecurityEvent('master_password_created')
+        await logSecurityEvent('recovery_key_generated')
+      } else {
+        toast({ title: 'Senha mestre atualizada com sucesso!' })
+      }
+
       setOldPassword('')
       setNewPassword('')
       setConfirmPassword('')
-
-      toast({ title: 'Senha mestre atualizada com sucesso!' })
     } catch (error: any) {
       toast({
         title: 'Erro ao atualizar senha mestre',
@@ -472,59 +533,125 @@ function MasterPasswordForm({ user }: { user: any }) {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Senha Mestre (Notas Bloqueadas)</CardTitle>
-        <CardDescription>
-          Configure ou altere sua senha mestre usada para proteger anotações confidenciais.
-        </CardDescription>
-      </CardHeader>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Senha Mestre (Notas Bloqueadas)</CardTitle>
+          <CardDescription>
+            Configure ou altere sua senha mestre usada para proteger anotações confidenciais.
+          </CardDescription>
+        </CardHeader>
 
-      <CardContent>
-        <form onSubmit={handleSave} className="space-y-4">
-          {hasMasterPassword && (
+        <CardContent>
+          <form onSubmit={handleSave} className="space-y-4">
+            {hasMasterPassword && (
+              <div className="space-y-2">
+                <Label htmlFor="oldPassword">Senha Antiga</Label>
+                <Input
+                  id="oldPassword"
+                  type="password"
+                  value={oldPassword}
+                  onChange={(e) => setOldPassword(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label htmlFor="oldPassword">Senha Antiga</Label>
+              <Label htmlFor="newPassword">Nova Senha Mestre</Label>
               <Input
-                id="oldPassword"
+                id="newPassword"
                 type="password"
-                value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
                 required
               />
             </div>
-          )}
 
-          <div className="space-y-2">
-            <Label htmlFor="newPassword">Nova Senha Mestre</Label>
-            <Input
-              id="newPassword"
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-            />
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmar Nova Senha Mestre</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="pt-4 flex justify-end">
+              <Button type="submit" disabled={loading}>
+                {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Salvar Alterações
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Dialog
+        open={showRecoveryModal}
+        onOpenChange={(open) => {
+          // Prevent closing the modal unless confirmed
+          if (!open && !confirmedSafekeeping) return
+          setShowRecoveryModal(open)
+        }}
+      >
+        <DialogContent
+          className="sm:max-w-md"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle>Guarde sua chave de recuperação</DialogTitle>
+            <DialogDescription>
+              Esta chave será necessária caso você esqueça sua senha mestra. Por segurança, o
+              NotesVault não poderá mostrar esta chave novamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex gap-2">
+              <Input value={recoveryKey} readOnly className="font-mono text-center bg-muted" />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => {
+                  navigator.clipboard.writeText(recoveryKey)
+                  toast({
+                    title: 'Copiado!',
+                    description: 'Chave de recuperação copiada para a área de transferência.',
+                  })
+                }}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex items-start space-x-2 pt-2">
+              <Checkbox
+                id="confirm-safekeeping-settings"
+                checked={confirmedSafekeeping}
+                onCheckedChange={(checked) => setConfirmedSafekeeping(checked as boolean)}
+              />
+              <label
+                htmlFor="confirm-safekeeping-settings"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Entendo que preciso guardar minha chave de recuperação.
+              </label>
+            </div>
           </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirmar Nova Senha Mestre</Label>
-            <Input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="pt-4 flex justify-end">
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Salvar Alterações
+          <DialogFooter>
+            <Button
+              type="button"
+              disabled={!confirmedSafekeeping}
+              onClick={() => setShowRecoveryModal(false)}
+            >
+              Concluir
             </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

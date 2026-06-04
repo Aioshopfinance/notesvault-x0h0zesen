@@ -494,7 +494,11 @@ export type Database = {
           full_name: string | null
           id: string
           master_password: string | null
+          master_password_hash: string | null
           phone: string | null
+          recovery_key_created_at: string | null
+          recovery_key_hash: string | null
+          recovery_key_used_at: string | null
           secondary_email: string | null
           state: string | null
           theme: string | null
@@ -512,7 +516,11 @@ export type Database = {
           full_name?: string | null
           id: string
           master_password?: string | null
+          master_password_hash?: string | null
           phone?: string | null
+          recovery_key_created_at?: string | null
+          recovery_key_hash?: string | null
+          recovery_key_used_at?: string | null
           secondary_email?: string | null
           state?: string | null
           theme?: string | null
@@ -530,7 +538,11 @@ export type Database = {
           full_name?: string | null
           id?: string
           master_password?: string | null
+          master_password_hash?: string | null
           phone?: string | null
+          recovery_key_created_at?: string | null
+          recovery_key_hash?: string | null
+          recovery_key_used_at?: string | null
           secondary_email?: string | null
           state?: string | null
           theme?: string | null
@@ -819,6 +831,10 @@ export const Constants = {
 //   zip_code: text (nullable)
 //   timesheet_columns: jsonb (nullable, default: '["date", "start_time", "end_time", "break_time", "wh", "hourly_rate", "client", "location", "status", "dt"]'::jsonb)
 //   currency: text (nullable, default: 'USD'::text)
+//   master_password_hash: text (nullable)
+//   recovery_key_hash: text (nullable)
+//   recovery_key_created_at: timestamp with time zone (nullable)
+//   recovery_key_used_at: timestamp with time zone (nullable)
 
 // --- CONSTRAINTS ---
 // Table: attachments
@@ -985,8 +1001,8 @@ export const Constants = {
 //    LANGUAGE plpgsql
 //   AS $function$
 //   BEGIN
-//     IF NEW.action NOT IN ('view', 'copy', 'create', 'update', 'delete', 'moved_to_trash', 'restored_from_trash', 'permanently_deleted') THEN
-//       RAISE EXCEPTION 'Invalid action: %. Must be one of: view, copy, create, update, delete, moved_to_trash, restored_from_trash, permanently_deleted', NEW.action;
+//     IF NEW.action NOT IN ('view', 'copy', 'create', 'update', 'delete', 'moved_to_trash', 'restored_from_trash', 'permanently_deleted', 'master_password_created', 'recovery_key_generated', 'master_password_unlocked', 'master_password_locked', 'master_password_expired') THEN
+//       RAISE EXCEPTION 'Invalid action: %', NEW.action;
 //     END IF;
 //     RETURN NEW;
 //   END;
