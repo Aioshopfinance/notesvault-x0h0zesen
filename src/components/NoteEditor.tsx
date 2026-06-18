@@ -2,7 +2,23 @@ import { useState, useEffect, useCallback } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
-import { Bold, Italic, List, ListOrdered, Link2, Pin, X, Save, Lock, Unlock } from 'lucide-react'
+import TextAlign from '@tiptap/extension-text-align'
+import {
+  Bold,
+  Italic,
+  List,
+  ListOrdered,
+  Link2,
+  Pin,
+  X,
+  Save,
+  Lock,
+  Unlock,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -18,6 +34,113 @@ import useNotesStore from '@/stores/useNotesStore'
 import { useToast } from '@/hooks/use-toast'
 import { NoteTagsPopover } from './NoteTagsPopover'
 import { MasterPasswordDialog } from './MasterPasswordDialog'
+
+const convertMarkdownToHtml = (text: string) => {
+  if (!text) return ''
+  if (/<p>|<h1>|<h2>|<h3>|<ul>|<ol>|<blockquote>/i.test(text)) return text
+
+  const lines = text.split('\n')
+  let html = ''
+  let inUl = false
+  let inOl = false
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim()
+
+    if (!line) {
+      if (inUl) {
+        html += '</ul>'
+        inUl = false
+      }
+      if (inOl) {
+        html += '</ol>'
+        inOl = false
+      }
+      continue
+    }
+
+    line = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    line = line.replace(/\*(.*?)\*/g, '<em>$1</em>')
+    line = line.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>')
+
+    if (line.startsWith('# ')) {
+      if (inUl) {
+        html += '</ul>'
+        inUl = false
+      }
+      if (inOl) {
+        html += '</ol>'
+        inOl = false
+      }
+      html += `<h1>${line.substring(2)}</h1>`
+    } else if (line.startsWith('## ')) {
+      if (inUl) {
+        html += '</ul>'
+        inUl = false
+      }
+      if (inOl) {
+        html += '</ol>'
+        inOl = false
+      }
+      html += `<h2>${line.substring(3)}</h2>`
+    } else if (line.startsWith('### ')) {
+      if (inUl) {
+        html += '</ul>'
+        inUl = false
+      }
+      if (inOl) {
+        html += '</ol>'
+        inOl = false
+      }
+      html += `<h3>${line.substring(4)}</h3>`
+    } else if (line.startsWith('> ')) {
+      if (inUl) {
+        html += '</ul>'
+        inUl = false
+      }
+      if (inOl) {
+        html += '</ol>'
+        inOl = false
+      }
+      html += `<blockquote>${line.substring(2)}</blockquote>`
+    } else if (line.match(/^-\s+/)) {
+      if (inOl) {
+        html += '</ol>'
+        inOl = false
+      }
+      if (!inUl) {
+        html += '<ul>'
+        inUl = true
+      }
+      html += `<li>${line.replace(/^-\s+/, '')}</li>`
+    } else if (line.match(/^\d+\.\s+/)) {
+      if (inUl) {
+        html += '</ul>'
+        inUl = false
+      }
+      if (!inOl) {
+        html += '<ol>'
+        inOl = true
+      }
+      html += `<li>${line.replace(/^\d+\.\s+/, '')}</li>`
+    } else {
+      if (inUl) {
+        html += '</ul>'
+        inUl = false
+      }
+      if (inOl) {
+        html += '</ol>'
+        inOl = false
+      }
+      html += `<p>${line}</p>`
+    }
+  }
+
+  if (inUl) html += '</ul>'
+  if (inOl) html += '</ol>'
+
+  return html
+}
 
 export function NoteEditor() {
   const {
@@ -48,8 +171,11 @@ export function NoteEditor() {
       Link.configure({
         openOnClick: false,
         HTMLAttributes: {
-          class: 'cursor-pointer',
+          class: 'cursor-pointer text-primary underline',
         },
+      }),
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
       }),
     ],
     content: '',
@@ -61,9 +187,10 @@ export function NoteEditor() {
   useEffect(() => {
     if (activeNote) {
       setTitle(activeNote.title)
-      setContent(activeNote.content)
-      if (editor && editor.getHTML() !== activeNote.content) {
-        editor.commands.setContent(activeNote.content || '')
+      const convertedContent = convertMarkdownToHtml(activeNote.content)
+      setContent(convertedContent)
+      if (editor && editor.getHTML() !== convertedContent) {
+        editor.commands.setContent(convertedContent || '')
       }
     } else {
       setTitle('')
@@ -94,19 +221,36 @@ export function NoteEditor() {
 
   const setLink = useCallback(() => {
     if (!editor) return
-    const previousUrl = editor.getAttributes('link').href
-    const url = window.prompt('URL', previousUrl)
 
-    if (url === null) {
-      return
+    const { from, to } = editor.state.selection
+    const isSelectionEmpty = from === to
+
+    if (isSelectionEmpty) {
+      const text = window.prompt('Texto do link (opcional):')
+      if (text === null) return
+      const url = window.prompt('URL:', 'https://')
+      if (url === null || url === '') return
+
+      editor
+        .chain()
+        .focus()
+        .insertContent(`<a href="${url}">${text || url}</a>`)
+        .run()
+    } else {
+      const previousUrl = editor.getAttributes('link').href
+      const url = window.prompt('URL:', previousUrl || 'https://')
+
+      if (url === null) {
+        return
+      }
+
+      if (url === '') {
+        editor.chain().focus().extendMarkRange('link').unsetLink().run()
+        return
+      }
+
+      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
     }
-
-    if (url === '') {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run()
-      return
-    }
-
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
   }, [editor])
 
   const handleLockSettingsSubmit = (e: React.FormEvent) => {
@@ -257,6 +401,72 @@ export function NoteEditor() {
               </TooltipTrigger>
               <TooltipContent>Lista Numerada</TooltipContent>
             </Tooltip>
+            <div className="w-px h-4 bg-border mx-1 shrink-0" />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    'w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8',
+                    editor?.isActive({ textAlign: 'left' }) && 'bg-muted',
+                  )}
+                  onClick={() => editor?.chain().focus().setTextAlign('left').run()}
+                >
+                  <AlignLeft className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Alinhar à Esquerda</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    'w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8',
+                    editor?.isActive({ textAlign: 'center' }) && 'bg-muted',
+                  )}
+                  onClick={() => editor?.chain().focus().setTextAlign('center').run()}
+                >
+                  <AlignCenter className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Centralizar</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    'w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8',
+                    editor?.isActive({ textAlign: 'right' }) && 'bg-muted',
+                  )}
+                  onClick={() => editor?.chain().focus().setTextAlign('right').run()}
+                >
+                  <AlignRight className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Alinhar à Direita</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    'w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8',
+                    editor?.isActive({ textAlign: 'justify' }) && 'bg-muted',
+                  )}
+                  onClick={() => editor?.chain().focus().setTextAlign('justify').run()}
+                >
+                  <AlignJustify className="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Justificar</TooltipContent>
+            </Tooltip>
+            <div className="w-px h-4 bg-border mx-1 shrink-0" />
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -358,7 +568,7 @@ export function NoteEditor() {
             )}
             <EditorContent
               editor={editor}
-              className="text-base md:text-lg leading-relaxed min-h-[150px] [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[150px] [&_.ProseMirror_p]:my-2 [&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-6 [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-6 [&_.ProseMirror_a]:text-primary [&_.ProseMirror_a]:underline [&_.ProseMirror_strong]:font-bold [&_.ProseMirror_em]:italic [&_.ProseMirror_p:first-child]:mt-0"
+              className="text-base md:text-lg leading-relaxed min-h-[150px] [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[150px] [&_.ProseMirror_p]:my-3 [&_.ProseMirror_h1]:text-3xl [&_.ProseMirror_h1]:font-bold [&_.ProseMirror_h1]:mb-4 [&_.ProseMirror_h1]:mt-6 [&_.ProseMirror_h2]:text-2xl [&_.ProseMirror_h2]:font-bold [&_.ProseMirror_h2]:mb-3 [&_.ProseMirror_h2]:mt-5 [&_.ProseMirror_h3]:text-xl [&_.ProseMirror_h3]:font-bold [&_.ProseMirror_h3]:mb-2 [&_.ProseMirror_h3]:mt-4 [&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-6 [&_.ProseMirror_ul]:my-3 [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-6 [&_.ProseMirror_ol]:my-3 [&_.ProseMirror_li]:my-1 [&_.ProseMirror_blockquote]:border-l-4 [&_.ProseMirror_blockquote]:border-primary/50 [&_.ProseMirror_blockquote]:pl-4 [&_.ProseMirror_blockquote]:italic [&_.ProseMirror_blockquote]:my-4 [&_.ProseMirror_blockquote]:text-muted-foreground [&_.ProseMirror_a]:text-primary [&_.ProseMirror_a]:underline [&_.ProseMirror_strong]:font-bold [&_.ProseMirror_em]:italic [&_.ProseMirror_p:first-child]:mt-0"
             />
           </div>
         </div>
