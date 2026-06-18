@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Bold, Italic, List, ListOrdered, Link2, Pin, X, Save, Lock, Unlock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -40,6 +40,7 @@ export function NoteEditor() {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [isLockSettingsOpen, setIsLockSettingsOpen] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (activeNote) {
@@ -65,8 +66,53 @@ export function NoteEditor() {
     }
   }
 
-  const insertMarkdown = (syntax: string) => {
-    setContent((prev) => prev + syntax)
+  const insertMarkdown = (prefix: string, suffix: string = '') => {
+    const textarea = textareaRef.current
+    if (!textarea) {
+      setContent((prev) => prev + prefix + suffix)
+      return
+    }
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selectedText = content.substring(start, end)
+
+    const before = content.substring(0, start)
+    const after = content.substring(end)
+
+    let newText = ''
+    let selectionStart = 0
+    let selectionEnd = 0
+
+    if (prefix === '[' && suffix === '](url)') {
+      const linkText = selectedText || 'texto do link'
+      newText = `[${linkText}](url)`
+      selectionStart = before.length + linkText.length + 3
+      selectionEnd = selectionStart + 3
+    } else if (prefix === '\n- ' || prefix === '\n1. ') {
+      newText = `${prefix}${selectedText}`
+      selectionStart = before.length + newText.length
+      selectionEnd = selectionStart
+    } else {
+      const textToWrap =
+        selectedText || (prefix === '**' ? 'negrito' : prefix === '*' ? 'itálico' : '')
+      newText = `${prefix}${textToWrap}${suffix}`
+
+      if (!selectedText) {
+        selectionStart = before.length + prefix.length
+        selectionEnd = selectionStart + textToWrap.length
+      } else {
+        selectionStart = before.length + newText.length
+        selectionEnd = selectionStart
+      }
+    }
+
+    setContent(before + newText + after)
+
+    setTimeout(() => {
+      textarea.focus()
+      textarea.setSelectionRange(selectionStart, selectionEnd)
+    }, 0)
   }
 
   const handleLockSettingsSubmit = (e: React.FormEvent) => {
@@ -158,7 +204,7 @@ export function NoteEditor() {
                   variant="ghost"
                   size="icon"
                   className="w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8"
-                  onClick={() => insertMarkdown('**negrito**')}
+                  onClick={() => insertMarkdown('**', '**')}
                 >
                   <Bold className="w-4 h-4" />
                 </Button>
@@ -171,7 +217,7 @@ export function NoteEditor() {
                   variant="ghost"
                   size="icon"
                   className="w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8"
-                  onClick={() => insertMarkdown('*itálico*')}
+                  onClick={() => insertMarkdown('*', '*')}
                 >
                   <Italic className="w-4 h-4" />
                 </Button>
@@ -211,7 +257,7 @@ export function NoteEditor() {
                   variant="ghost"
                   size="icon"
                   className="w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8"
-                  onClick={() => insertMarkdown('[link](url)')}
+                  onClick={() => insertMarkdown('[', '](url)')}
                 >
                   <Link2 className="w-4 h-4" />
                 </Button>
@@ -296,6 +342,7 @@ export function NoteEditor() {
             className="text-2xl md:text-4xl font-bold bg-transparent border-none outline-none placeholder:text-muted-foreground/50 mb-4 md:mb-6 shrink-0"
           />
           <Textarea
+            ref={textareaRef}
             placeholder="Comece a escrever aqui..."
             value={content}
             onChange={(e) => setContent(e.target.value)}
