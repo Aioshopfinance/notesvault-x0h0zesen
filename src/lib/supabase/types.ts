@@ -1,11 +1,17 @@
 // AVOID UPDATING THIS FILE DIRECTLY. It is automatically generated.
-export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: '14.5'
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -39,11 +45,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'attachments_note_id_fkey'
-            columns: ['note_id']
+            foreignKeyName: "attachments_note_id_fkey"
+            columns: ["note_id"]
             isOneToOne: false
-            referencedRelation: 'notes'
-            referencedColumns: ['id']
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -149,11 +155,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'folders_parent_folder_id_fkey'
-            columns: ['parent_folder_id']
+            foreignKeyName: "folders_parent_folder_id_fkey"
+            columns: ["parent_folder_id"]
             isOneToOne: false
-            referencedRelation: 'folders'
-            referencedColumns: ['id']
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -172,18 +178,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'note_tags_note_id_fkey'
-            columns: ['note_id']
+            foreignKeyName: "note_tags_note_id_fkey"
+            columns: ["note_id"]
             isOneToOne: false
-            referencedRelation: 'notes'
-            referencedColumns: ['id']
+            referencedRelation: "notes"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'note_tags_tag_id_fkey'
-            columns: ['tag_id']
+            foreignKeyName: "note_tags_tag_id_fkey"
+            columns: ["tag_id"]
             isOneToOne: false
-            referencedRelation: 'tags'
-            referencedColumns: ['id']
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -229,11 +235,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'notes_folder_id_fkey'
-            columns: ['folder_id']
+            foreignKeyName: "notes_folder_id_fkey"
+            columns: ["folder_id"]
             isOneToOne: false
-            referencedRelation: 'folders'
-            referencedColumns: ['id']
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -273,11 +279,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'scans_folder_id_fkey'
-            columns: ['folder_id']
+            foreignKeyName: "scans_folder_id_fkey"
+            columns: ["folder_id"]
             isOneToOne: false
-            referencedRelation: 'folders'
-            referencedColumns: ['id']
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -314,11 +320,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'secret_access_logs_secret_id_fkey'
-            columns: ['secret_id']
+            foreignKeyName: "secret_access_logs_secret_id_fkey"
+            columns: ["secret_id"]
             isOneToOne: false
-            referencedRelation: 'secrets'
-            referencedColumns: ['id']
+            referencedRelation: "secrets"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -475,11 +481,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: 'timesheets_status_id_fkey'
-            columns: ['status_id']
+            foreignKeyName: "timesheets_status_id_fkey"
+            columns: ["status_id"]
             isOneToOne: false
-            referencedRelation: 'time_record_statuses'
-            referencedColumns: ['id']
+            referencedRelation: "time_record_statuses"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -568,31 +574,33 @@ export type Database = {
   }
 }
 
-type DatabaseWithoutInternals = Omit<Database, '__InternalSupabase'>
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, 'public'>]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
-    | keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
-        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'] &
-      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Views'])[TableName] extends {
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema['Tables'] & DefaultSchema['Views'])
-    ? (DefaultSchema['Tables'] & DefaultSchema['Views'])[DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -601,23 +609,23 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema['Tables']
+    | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
-    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -626,23 +634,23 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    | keyof DefaultSchema['Tables']
+    | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables']
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions['schema']]['Tables'][TableName] extends {
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema['Tables']
-    ? DefaultSchema['Tables'][DefaultSchemaTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -651,36 +659,36 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    | keyof DefaultSchema['Enums']
+    | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums']
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions['schema']]['Enums'][EnumName]
-  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema['Enums']
-    ? DefaultSchema['Enums'][DefaultSchemaEnumNameOrOptions]
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof DefaultSchema['CompositeTypes']
+    | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
-    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes']
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
-  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions['schema']]['CompositeTypes'][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema['CompositeTypes']
-    ? DefaultSchema['CompositeTypes'][PublicCompositeTypeNameOrOptions]
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
 
 export const Constants = {
@@ -689,361 +697,3 @@ export const Constants = {
   },
 } as const
 
-// ====== DATABASE EXTENDED CONTEXT (auto-generated) ======
-// This section contains actual PostgreSQL column types, constraints, RLS policies,
-// functions, triggers, indexes and materialized views not present in the type definitions above.
-// IMPORTANT: The TypeScript types above map UUID, TEXT, VARCHAR all to "string".
-// Use the COLUMN TYPES section below to know the real PostgreSQL type for each column.
-// Always use the correct PostgreSQL type when writing SQL migrations.
-
-// --- COLUMN TYPES (actual PostgreSQL types) ---
-// Use this to know the real database type when writing migrations.
-// "string" in TypeScript types above may be uuid, text, varchar, timestamptz, etc.
-// Table: attachments
-//   id: uuid (not null, default: gen_random_uuid())
-//   note_id: uuid (not null)
-//   file_name: text (not null)
-//   file_type: text (not null)
-//   file_size: integer (not null)
-//   file_url: text (not null)
-//   created_at: timestamp with time zone (not null, default: now())
-// Table: daily_records
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (not null)
-//   work_date: date (not null)
-//   due_date: date (nullable)
-//   client_name: text (not null)
-//   service_location: text (nullable)
-//   client_phone: text (nullable)
-//   worker_name: text (not null)
-//   category: text (nullable)
-//   daily_type: text (not null, default: 'full_day'::text)
-//   quantity: numeric (not null, default: 1.00)
-//   unit_value: numeric (not null, default: 0.00)
-//   gross_amount: numeric (not null, default: 0.00)
-//   received_amount: numeric (not null, default: 0.00)
-//   pending_amount: numeric (not null, default: 0.00)
-//   service_status: text (not null, default: 'scheduled'::text)
-//   payment_status: text (not null, default: 'pending'::text)
-//   payment_method: text (nullable)
-//   reference_code: text (nullable)
-//   notes: text (nullable)
-//   created_at: timestamp with time zone (not null, default: now())
-//   updated_at: timestamp with time zone (not null, default: now())
-// Table: folders
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (not null)
-//   name: text (not null)
-//   parent_folder_id: uuid (nullable)
-//   created_at: timestamp with time zone (not null, default: now())
-//   updated_at: timestamp with time zone (not null, default: now())
-// Table: note_tags
-//   note_id: uuid (not null)
-//   tag_id: uuid (not null)
-// Table: notes
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (not null)
-//   folder_id: uuid (not null)
-//   title: text (not null, default: ''::text)
-//   content: text (not null, default: ''::text)
-//   is_pinned: boolean (not null, default: false)
-//   pinned_at: timestamp with time zone (nullable)
-//   created_at: timestamp with time zone (not null, default: now())
-//   updated_at: timestamp with time zone (not null, default: now())
-//   is_locked: boolean (not null, default: false)
-//   lock_password: text (nullable)
-// Table: scans
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (not null)
-//   file_name: text (nullable)
-//   image_url: text (nullable)
-//   extracted_text: text (nullable)
-//   created_at: timestamp with time zone (not null, default: now())
-//   display_name: text (nullable)
-//   folder_id: uuid (nullable)
-//   updated_at: timestamp with time zone (nullable, default: now())
-// Table: secret_access_logs
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (not null)
-//   secret_id: uuid (nullable)
-//   action: text (not null)
-//   ip_address: text (nullable)
-//   user_agent: text (nullable)
-//   details: jsonb (nullable, default: '{}'::jsonb)
-//   timestamp: timestamp with time zone (not null, default: now())
-// Table: secrets
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (not null)
-//   name: text (not null)
-//   value: text (not null)
-//   category: text (not null, default: 'Outro'::text)
-//   created_at: timestamp with time zone (not null, default: now())
-//   updated_at: timestamp with time zone (not null, default: now())
-//   platform: text (nullable)
-//   url: text (nullable)
-//   username: text (nullable)
-//   environment: text (nullable)
-//   password_origin: text (nullable)
-//   recovery_phrase: text (nullable)
-//   notes: text (nullable)
-//   deleted_at: timestamp with time zone (nullable)
-//   deleted_by: uuid (nullable)
-// Table: tags
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (not null)
-//   name: text (not null)
-//   color: text (not null, default: '#808080'::text)
-//   created_at: timestamp with time zone (not null, default: now())
-// Table: time_record_statuses
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (not null)
-//   name: text (not null)
-//   color: text (not null, default: '#FFA500'::text)
-//   created_at: timestamp with time zone (not null, default: now())
-//   updated_at: timestamp with time zone (not null, default: now())
-// Table: timesheets
-//   id: uuid (not null, default: gen_random_uuid())
-//   user_id: uuid (not null)
-//   date: date (not null)
-//   start_time: time without time zone (not null)
-//   end_time: time without time zone (not null)
-//   break_time: numeric (not null, default: 0)
-//   hourly_rate: numeric (not null, default: 17)
-//   client: text (nullable)
-//   location: text (nullable)
-//   created_at: timestamp with time zone (not null, default: now())
-//   updated_at: timestamp with time zone (not null, default: now())
-//   status_id: uuid (not null)
-// Table: user_preferences
-//   id: uuid (not null)
-//   full_name: text (nullable, default: ''::text)
-//   avatar_url: text (nullable, default: ''::text)
-//   theme: text (nullable, default: 'system'::text)
-//   created_at: timestamp with time zone (not null, default: now())
-//   updated_at: timestamp with time zone (not null, default: now())
-//   master_password: text (nullable)
-//   secondary_email: text (nullable)
-//   phone: text (nullable)
-//   address: text (nullable)
-//   country: text (nullable)
-//   state: text (nullable)
-//   city: text (nullable)
-//   zip_code: text (nullable)
-//   timesheet_columns: jsonb (nullable, default: '["date", "start_time", "end_time", "break_time", "wh", "hourly_rate", "client", "location", "status", "dt"]'::jsonb)
-//   currency: text (nullable, default: 'USD'::text)
-//   master_password_hash: text (nullable)
-//   recovery_key_hash: text (nullable)
-//   recovery_key_created_at: timestamp with time zone (nullable)
-//   recovery_key_used_at: timestamp with time zone (nullable)
-
-// --- CONSTRAINTS ---
-// Table: attachments
-//   FOREIGN KEY attachments_note_id_fkey: FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
-//   PRIMARY KEY attachments_pkey: PRIMARY KEY (id)
-// Table: daily_records
-//   CHECK daily_records_daily_type_check: CHECK ((daily_type = ANY (ARRAY['full_day'::text, 'half_day'::text, 'custom'::text])))
-//   CHECK daily_records_payment_status_check: CHECK ((payment_status = ANY (ARRAY['pending'::text, 'partial'::text, 'paid'::text, 'cancelled'::text])))
-//   PRIMARY KEY daily_records_pkey: PRIMARY KEY (id)
-//   CHECK daily_records_quantity_check: CHECK ((quantity >= (0)::numeric))
-//   CHECK daily_records_received_amount_check: CHECK ((received_amount >= (0)::numeric))
-//   CHECK daily_records_service_status_check: CHECK ((service_status = ANY (ARRAY['scheduled'::text, 'in_progress'::text, 'completed'::text, 'cancelled'::text])))
-//   CHECK daily_records_unit_value_check: CHECK ((unit_value >= (0)::numeric))
-//   FOREIGN KEY daily_records_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
-// Table: folders
-//   FOREIGN KEY folders_parent_folder_id_fkey: FOREIGN KEY (parent_folder_id) REFERENCES folders(id) ON DELETE CASCADE
-//   PRIMARY KEY folders_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY folders_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
-// Table: note_tags
-//   FOREIGN KEY note_tags_note_id_fkey: FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
-//   PRIMARY KEY note_tags_pkey: PRIMARY KEY (note_id, tag_id)
-//   FOREIGN KEY note_tags_tag_id_fkey: FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-// Table: notes
-//   FOREIGN KEY notes_folder_id_fkey: FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE
-//   PRIMARY KEY notes_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY notes_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
-// Table: scans
-//   FOREIGN KEY scans_folder_id_fkey: FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE SET NULL
-//   PRIMARY KEY scans_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY scans_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
-// Table: secret_access_logs
-//   PRIMARY KEY secret_access_logs_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY secret_access_logs_secret_id_fkey: FOREIGN KEY (secret_id) REFERENCES secrets(id) ON DELETE SET NULL
-//   FOREIGN KEY secret_access_logs_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
-// Table: secrets
-//   FOREIGN KEY secrets_deleted_by_fkey: FOREIGN KEY (deleted_by) REFERENCES auth.users(id) ON DELETE SET NULL
-//   PRIMARY KEY secrets_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY secrets_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
-// Table: tags
-//   PRIMARY KEY tags_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY tags_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
-// Table: time_record_statuses
-//   PRIMARY KEY time_record_statuses_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY time_record_statuses_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
-//   UNIQUE time_record_statuses_user_id_name_key: UNIQUE (user_id, name)
-// Table: timesheets
-//   PRIMARY KEY timesheets_pkey: PRIMARY KEY (id)
-//   FOREIGN KEY timesheets_status_id_fkey: FOREIGN KEY (status_id) REFERENCES time_record_statuses(id) ON DELETE RESTRICT
-//   FOREIGN KEY timesheets_user_id_fkey: FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
-// Table: user_preferences
-//   FOREIGN KEY user_preferences_id_fkey: FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
-//   PRIMARY KEY user_preferences_pkey: PRIMARY KEY (id)
-
-// --- ROW LEVEL SECURITY POLICIES ---
-// Table: attachments
-//   Policy "Users can manage attachments of their notes" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: (EXISTS ( SELECT 1    FROM notes   WHERE ((notes.id = attachments.note_id) AND (notes.user_id = auth.uid()))))
-//     WITH CHECK: (EXISTS ( SELECT 1    FROM notes   WHERE ((notes.id = attachments.note_id) AND (notes.user_id = auth.uid()))))
-// Table: daily_records
-//   Policy "Users can delete their own daily records" (DELETE, PERMISSIVE) roles={public}
-//     USING: (auth.uid() = user_id)
-//   Policy "Users can insert their own daily records" (INSERT, PERMISSIVE) roles={public}
-//     WITH CHECK: (auth.uid() = user_id)
-//   Policy "Users can update their own daily records" (UPDATE, PERMISSIVE) roles={public}
-//     USING: (auth.uid() = user_id)
-//     WITH CHECK: (auth.uid() = user_id)
-//   Policy "Users can view their own daily records" (SELECT, PERMISSIVE) roles={public}
-//     USING: (auth.uid() = user_id)
-// Table: folders
-//   Policy "Users can manage their own folders" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//     WITH CHECK: (auth.uid() = user_id)
-// Table: note_tags
-//   Policy "Users can manage note tags" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: (note_id IN ( SELECT notes.id    FROM notes   WHERE (notes.user_id = auth.uid())))
-//     WITH CHECK: (note_id IN ( SELECT notes.id    FROM notes   WHERE (notes.user_id = auth.uid())))
-// Table: notes
-//   Policy "Users can manage their own notes" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//     WITH CHECK: (auth.uid() = user_id)
-// Table: scans
-//   Policy "Users can delete their own scans" (DELETE, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//   Policy "Users can insert their own scans" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (auth.uid() = user_id)
-//   Policy "Users can view their own scans" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-// Table: secret_access_logs
-//   Policy "Users can insert their own logs" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (auth.uid() = user_id)
-//   Policy "Users can read their own logs" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-// Table: secrets
-//   Policy "Users can manage their own secrets" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//     WITH CHECK: (auth.uid() = user_id)
-// Table: tags
-//   Policy "Users can manage their own tags" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//     WITH CHECK: (auth.uid() = user_id)
-// Table: time_record_statuses
-//   Policy "Users can manage their own statuses" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//     WITH CHECK: (auth.uid() = user_id)
-// Table: timesheets
-//   Policy "Users can manage their own timesheets" (ALL, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = user_id)
-//     WITH CHECK: (auth.uid() = user_id)
-// Table: user_preferences
-//   Policy "Users can insert their own preferences" (INSERT, PERMISSIVE) roles={authenticated}
-//     WITH CHECK: (auth.uid() = id)
-//   Policy "Users can update their own preferences" (UPDATE, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = id)
-//     WITH CHECK: (auth.uid() = id)
-//   Policy "Users can view their own preferences" (SELECT, PERMISSIVE) roles={authenticated}
-//     USING: (auth.uid() = id)
-
-// --- DATABASE FUNCTIONS ---
-// FUNCTION handle_new_user_folder()
-//   CREATE OR REPLACE FUNCTION public.handle_new_user_folder()
-//    RETURNS trigger
-//    LANGUAGE plpgsql
-//    SECURITY DEFINER
-//   AS $function$
-//   BEGIN
-//     INSERT INTO public.folders (user_id, name)
-//     VALUES (NEW.id, 'Minhas Notas');
-//     RETURN NEW;
-//   END;
-//   $function$
-//
-// FUNCTION handle_new_user_preferences()
-//   CREATE OR REPLACE FUNCTION public.handle_new_user_preferences()
-//    RETURNS trigger
-//    LANGUAGE plpgsql
-//    SECURITY DEFINER
-//   AS $function$
-//   BEGIN
-//     INSERT INTO public.user_preferences (id, full_name)
-//     VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email))
-//     ON CONFLICT (id) DO NOTHING;
-//     RETURN NEW;
-//   END;
-//   $function$
-//
-// FUNCTION handle_new_user_statuses()
-//   CREATE OR REPLACE FUNCTION public.handle_new_user_statuses()
-//    RETURNS trigger
-//    LANGUAGE plpgsql
-//    SECURITY DEFINER
-//   AS $function$
-//   BEGIN
-//       INSERT INTO public.time_record_statuses (user_id, name, color)
-//       VALUES
-//           (NEW.id, 'Pendente', '#FFA500'),
-//           (NEW.id, 'Pago', '#4CAF50');
-//       RETURN NEW;
-//   END;
-//   $function$
-//
-// FUNCTION normalize_secret_log_action()
-//   CREATE OR REPLACE FUNCTION public.normalize_secret_log_action()
-//    RETURNS trigger
-//    LANGUAGE plpgsql
-//   AS $function$
-//   BEGIN
-//     IF NEW.action NOT IN ('view', 'copy', 'create', 'update', 'delete', 'moved_to_trash', 'restored_from_trash', 'permanently_deleted', 'master_password_created', 'recovery_key_generated', 'master_password_unlocked', 'master_password_locked', 'master_password_expired') THEN
-//       RAISE EXCEPTION 'Invalid action: %', NEW.action;
-//     END IF;
-//     RETURN NEW;
-//   END;
-//   $function$
-//
-// FUNCTION update_updated_at_column()
-//   CREATE OR REPLACE FUNCTION public.update_updated_at_column()
-//    RETURNS trigger
-//    LANGUAGE plpgsql
-//   AS $function$
-//   begin
-//     new.updated_at = now();
-//     return new;
-//   end;
-//   $function$
-//
-
-// --- TRIGGERS ---
-// Table: daily_records
-//   update_daily_records_updated_at: CREATE TRIGGER update_daily_records_updated_at BEFORE UPDATE ON public.daily_records FOR EACH ROW EXECUTE FUNCTION update_updated_at_column()
-// Table: secret_access_logs
-//   trg_normalize_secret_log_action: CREATE TRIGGER trg_normalize_secret_log_action BEFORE INSERT OR UPDATE ON public.secret_access_logs FOR EACH ROW EXECUTE FUNCTION normalize_secret_log_action()
-
-// --- INDEXES ---
-// Table: daily_records
-//   CREATE INDEX idx_daily_records_client_name ON public.daily_records USING btree (client_name)
-//   CREATE INDEX idx_daily_records_payment_status ON public.daily_records USING btree (payment_status)
-//   CREATE INDEX idx_daily_records_service_status ON public.daily_records USING btree (service_status)
-//   CREATE INDEX idx_daily_records_user_id ON public.daily_records USING btree (user_id)
-//   CREATE INDEX idx_daily_records_work_date ON public.daily_records USING btree (work_date)
-//   CREATE INDEX idx_daily_records_worker_name ON public.daily_records USING btree (worker_name)
-// Table: scans
-//   CREATE INDEX scans_created_at_idx ON public.scans USING btree (created_at DESC)
-//   CREATE INDEX scans_folder_id_idx ON public.scans USING btree (folder_id)
-//   CREATE INDEX scans_user_id_idx ON public.scans USING btree (user_id)
-// Table: secret_access_logs
-//   CREATE INDEX idx_secret_logs_secret_id ON public.secret_access_logs USING btree (secret_id)
-//   CREATE INDEX idx_secret_logs_timestamp ON public.secret_access_logs USING btree ("timestamp")
-//   CREATE INDEX idx_secret_logs_user_id ON public.secret_access_logs USING btree (user_id)
-// Table: time_record_statuses
-//   CREATE UNIQUE INDEX time_record_statuses_user_id_name_key ON public.time_record_statuses USING btree (user_id, name)
-// Table: timesheets
-//   CREATE INDEX idx_timesheets_date ON public.timesheets USING btree (date)
-//   CREATE INDEX idx_timesheets_user_id ON public.timesheets USING btree (user_id)
