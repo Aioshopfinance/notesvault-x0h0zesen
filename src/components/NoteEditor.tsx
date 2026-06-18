@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useEditor, EditorContent } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import Link from '@tiptap/extension-link'
 import { Bold, Italic, List, ListOrdered, Link2, Pin, X, Save, Lock, Unlock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   Dialog,
@@ -11,7 +13,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import useNotesStore from '@/stores/useNotesStore'
 import { useToast } from '@/hooks/use-toast'
@@ -40,14 +41,39 @@ export function NoteEditor() {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [isLockSettingsOpen, setIsLockSettingsOpen] = useState(false)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'cursor-pointer',
+        },
+      }),
+    ],
+    content: '',
+    onUpdate: ({ editor }) => {
+      setContent(editor.getHTML())
+    },
+  })
 
   useEffect(() => {
     if (activeNote) {
       setTitle(activeNote.title)
       setContent(activeNote.content)
+      if (editor && editor.getHTML() !== activeNote.content) {
+        editor.commands.setContent(activeNote.content || '')
+      }
+    } else {
+      setTitle('')
+      setContent('')
+      if (editor) {
+        editor.commands.setContent('')
+      }
     }
-  }, [activeNote?.id])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeNote?.id, editor])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -66,54 +92,22 @@ export function NoteEditor() {
     }
   }
 
-  const insertMarkdown = (prefix: string, suffix: string = '') => {
-    const textarea = textareaRef.current
-    if (!textarea) {
-      setContent((prev) => prev + prefix + suffix)
+  const setLink = useCallback(() => {
+    if (!editor) return
+    const previousUrl = editor.getAttributes('link').href
+    const url = window.prompt('URL', previousUrl)
+
+    if (url === null) {
       return
     }
 
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const selectedText = content.substring(start, end)
-
-    const before = content.substring(0, start)
-    const after = content.substring(end)
-
-    let newText = ''
-    let selectionStart = 0
-    let selectionEnd = 0
-
-    if (prefix === '[' && suffix === '](url)') {
-      const linkText = selectedText || 'texto do link'
-      newText = `[${linkText}](url)`
-      selectionStart = before.length + linkText.length + 3
-      selectionEnd = selectionStart + 3
-    } else if (prefix === '\n- ' || prefix === '\n1. ') {
-      newText = `${prefix}${selectedText}`
-      selectionStart = before.length + newText.length
-      selectionEnd = selectionStart
-    } else {
-      const textToWrap =
-        selectedText || (prefix === '**' ? 'negrito' : prefix === '*' ? 'itálico' : '')
-      newText = `${prefix}${textToWrap}${suffix}`
-
-      if (!selectedText) {
-        selectionStart = before.length + prefix.length
-        selectionEnd = selectionStart + textToWrap.length
-      } else {
-        selectionStart = before.length + newText.length
-        selectionEnd = selectionStart
-      }
+    if (url === '') {
+      editor.chain().focus().extendMarkRange('link').unsetLink().run()
+      return
     }
 
-    setContent(before + newText + after)
-
-    setTimeout(() => {
-      textarea.focus()
-      textarea.setSelectionRange(selectionStart, selectionEnd)
-    }, 0)
-  }
+    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
+  }, [editor])
 
   const handleLockSettingsSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -203,8 +197,11 @@ export function NoteEditor() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8"
-                  onClick={() => insertMarkdown('**', '**')}
+                  className={cn(
+                    'w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8',
+                    editor?.isActive('bold') && 'bg-muted',
+                  )}
+                  onClick={() => editor?.chain().focus().toggleBold().run()}
                 >
                   <Bold className="w-4 h-4" />
                 </Button>
@@ -216,8 +213,11 @@ export function NoteEditor() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8"
-                  onClick={() => insertMarkdown('*', '*')}
+                  className={cn(
+                    'w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8',
+                    editor?.isActive('italic') && 'bg-muted',
+                  )}
+                  onClick={() => editor?.chain().focus().toggleItalic().run()}
                 >
                   <Italic className="w-4 h-4" />
                 </Button>
@@ -230,8 +230,11 @@ export function NoteEditor() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8"
-                  onClick={() => insertMarkdown('\n- ')}
+                  className={cn(
+                    'w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8',
+                    editor?.isActive('bulletList') && 'bg-muted',
+                  )}
+                  onClick={() => editor?.chain().focus().toggleBulletList().run()}
                 >
                   <List className="w-4 h-4" />
                 </Button>
@@ -243,8 +246,11 @@ export function NoteEditor() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8"
-                  onClick={() => insertMarkdown('\n1. ')}
+                  className={cn(
+                    'w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8',
+                    editor?.isActive('orderedList') && 'bg-muted',
+                  )}
+                  onClick={() => editor?.chain().focus().toggleOrderedList().run()}
                 >
                   <ListOrdered className="w-4 h-4" />
                 </Button>
@@ -256,8 +262,11 @@ export function NoteEditor() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8"
-                  onClick={() => insertMarkdown('[', '](url)')}
+                  className={cn(
+                    'w-8 h-8 min-h-8 min-w-8 md:min-h-8 md:min-w-8',
+                    editor?.isActive('link') && 'bg-muted',
+                  )}
+                  onClick={setLink}
                 >
                   <Link2 className="w-4 h-4" />
                 </Button>
@@ -341,13 +350,17 @@ export function NoteEditor() {
             onChange={(e) => setTitle(e.target.value)}
             className="text-2xl md:text-4xl font-bold bg-transparent border-none outline-none placeholder:text-muted-foreground/50 mb-4 md:mb-6 shrink-0"
           />
-          <Textarea
-            ref={textareaRef}
-            placeholder="Comece a escrever aqui..."
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="flex-1 text-base md:text-lg resize-none border-none focus-visible:ring-0 p-0 bg-transparent leading-relaxed min-h-[150px]"
-          />
+          <div className="relative flex-1 overflow-y-auto">
+            {editor?.isEmpty && (
+              <div className="absolute top-0 left-0 text-muted-foreground/50 pointer-events-none">
+                Comece a escrever aqui...
+              </div>
+            )}
+            <EditorContent
+              editor={editor}
+              className="text-base md:text-lg leading-relaxed min-h-[150px] [&_.ProseMirror]:outline-none [&_.ProseMirror]:min-h-[150px] [&_.ProseMirror_p]:my-2 [&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-6 [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-6 [&_.ProseMirror_a]:text-primary [&_.ProseMirror_a]:underline [&_.ProseMirror_strong]:font-bold [&_.ProseMirror_em]:italic [&_.ProseMirror_p:first-child]:mt-0"
+            />
+          </div>
         </div>
       </div>
 
